@@ -56,29 +56,3 @@ dst_path="$_install_path/bin"
 
 msg "ARBOR: library build completed"
 cd $_base_path
-
-export CMAKE_PREFIX_PATH="$_install_path"
-
-msg "ARBOR: SONATA example"
-source_path="${_base_path}/sonata"
-build_path="${_build_path}/sonata"
-mkdir -p "$build_path"
-cd "$build_path"
-
-msg "ARBOR: cmake"
-cmake "$source_path" -DCMAKE_INSTALL_PREFIX:PATH="$_install_path" >> "$out" 2>&1
-[ $? != 0 ] && exit_on_error "see ${out}"
-
-msg "ARBOR: make"
-make -j $_makej >> "$out" 2>&1
-[ $? != 0 ] && exit_on_error "see ${out}"
-
-msg "ARBOR: install"
-make install >> "$out" 2>&1
-[ $? != 0 ] && exit_on_error "see ${out}"
-
-cd $_base_path
-
-echo
-msg "ARBOR: saving environment"
-save_environment arbor

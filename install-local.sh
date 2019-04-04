@@ -17,8 +17,6 @@ msg "root:            $_base_path"
 msg "work dir prefix: $_prefix"
 msg "install path:    $_install_path"
 msg "build path:      $_build_path"
-msg "input path:      $_input_path"
-msg "output path:     $_output_path"
 echo
 msg "---- SYSTEM ----"
 msg "system:          $_system"

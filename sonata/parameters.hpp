@@ -5,10 +5,10 @@
 
 struct sonata_params {
 
-    std::string nodes_hdf5 = "/home/abiakarn/git/arbor/build_del/nodes.h5";
-    std::string nodes_csv = "/home/abiakarn/git/arbor/build_del/node_types.csv";
-    std::string edges_hdf5 = "/home/abiakarn/git/arbor/build_del/edges.h5";
-    std::string edges_csv = "/home/abiakarn/git/arbor/build_del/edge_types.csv";
+    std::string nodes_hdf5 = "/home/abiakarn/git/arbor/build_sonata/nodes.h5";
+    std::string nodes_csv = "/home/abiakarn/git/arbor/build_sonata/node_types.csv";
+    std::string edges_hdf5 = "/home/abiakarn/git/arbor/build_sonata/edges.h5";
+    std::string edges_csv = "/home/abiakarn/git/arbor/build_sonata/edge_types.csv";
 
 };
 

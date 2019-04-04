@@ -19,9 +19,6 @@
 #include <arborenv/concurrency.hpp>
 #include <arborenv/gpu_env.hpp>
 
-//#include <sup/ioutil.hpp>
-//#include <sup/json_meter.hpp>
-
 #include "parameters.hpp"
 #include "data_management_lib.hpp"
 
@@ -140,8 +137,6 @@ int main(int argc, char **argv)
         arb::profile::profiler_initialize(context);
 #endif
 
-        //std::cout << sup::mask_stream(root);
-
         // Print a banner with information about hardware configuration
         std::cout << "gpu:      " << (has_gpu(context)? "yes": "no") << "\n";
         std::cout << "threads:  " << num_threads(context) << "\n";
@@ -171,34 +166,11 @@ int main(int argc, char **argv)
         csv_record n_t(node_def);
 
         sonata_recipe recipe(n, e, n_t, e_t);
-        //sonata_recipe recipe;
 
         auto decomp = arb::partition_load_balance(recipe, context);
 
-        meters.checkpoint("model-init", context);
-        for(unsigned i =0; i < 500; i++) {
-            auto conns = recipe.connections_on(i%500);
-        }
-        meters.checkpoint("model-conns", context);
-        for(unsigned i =0; i < 500; i++) {
-            auto cell = arb::util::any_cast<arb::cable_cell>(recipe.get_cell_description(i%500));
-        }
-        meters.checkpoint("model-cells", context);
-        for(unsigned i =0; i < 500; i++) {
-            auto conns = recipe.num_sources(i);
-        }
-        meters.checkpoint("model-srcs", context);
-        for(unsigned i =0; i < 500; i++) {
-            auto conns = recipe.num_targets(i);
-
-        }
-        meters.checkpoint("model-tgts", context);
-
-        auto report = arb::profile::make_meter_report(meters, context);
-        std::cout << report;
-
         // Construct the model.
-        /*arb::simulation sim(recipe, decomp, context);
+        arb::simulation sim(recipe, decomp, context);
 
         // Set up the probe that will measure voltage in the cell.
 
@@ -256,7 +228,7 @@ int main(int argc, char **argv)
         std::cout << report;
 
         auto summary = arb::profile::profiler_summary();
-        std::cout << summary << "\n";*/
+        std::cout << summary << "\n";
 
     }
     catch (std::exception& e) {

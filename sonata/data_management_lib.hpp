@@ -5,8 +5,6 @@
 #include <hdf5.h>
 #include <assert.h>
 #include <unordered_set>
-#include <malloc.h>
-#include <chrono>
 
 #include "hdf5_lib.hpp"
 #include "csv_lib.hpp"
@@ -16,8 +14,6 @@ using arb::cell_lid_type;
 using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
-
-typedef std::chrono::high_resolution_clock Clock;
 
 using source_type = std::pair<segment_location,double>;
 using target_type = std::pair<segment_location,std::string>;
@@ -304,7 +300,6 @@ unsigned database::num_targets(cell_gid_type gid) {
 // Read from HDF5 file/ CSV file depending on where the information is available
 
 std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
-    auto t1 = Clock::now();
     std::vector<source_type> ret;
 
     // First read edge_group_id and edge_group_index and edge_type
@@ -369,8 +364,6 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
 
         ret.emplace_back(segment_location((unsigned)source_branch, source_pos), threshold);
     }
-    auto t2 = Clock::now();
-    std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << std::endl;
     return ret;
 }
 
