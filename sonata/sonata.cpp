@@ -52,6 +52,22 @@ public:
         return num_cells_;
     }
 
+    void build_local_maps(unsigned rank, unsigned num_ranks) {
+        unsigned base_size = num_cells_/num_ranks;
+        unsigned rem = num_cells_%num_ranks;
+
+        unsigned s = 0;
+        naive_partition_.push_back(s);
+        for (unsigned i = 0; i < num_ranks; i++) {
+            if (i < rem) {
+                s++;
+            }
+            s+= base_size;
+            naive_partition_.push_back(s);
+        }
+        database_.build_source_and_target_maps(std::make_pair(naive_partition_[rank], naive_partition_[rank+1]));
+    }
+
     arb::util::unique_any get_cell_description(cell_gid_type gid) const override {
         std::vector<std::pair<arb::segment_location,double>> src_types;
         std::vector<std::pair<arb::segment_location,arb::mechanism_desc>> tgt_types;
@@ -108,6 +124,7 @@ private:
     mutable std::mutex mtx_;
     mutable database database_;
     cell_size_type num_cells_;
+    std::vector<unsigned> naive_partition_;
 };
 
 int main(int argc, char **argv)
@@ -166,6 +183,7 @@ int main(int argc, char **argv)
         csv_record n_t(node_def);
 
         sonata_recipe recipe(n, e, n_t, e_t);
+        recipe.build_local_maps(0, 1);
 
         auto decomp = arb::partition_load_balance(recipe, context);
 

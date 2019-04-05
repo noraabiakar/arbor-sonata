@@ -53,6 +53,7 @@ public:
     cell_size_type num_edges() {
         return edges_.num_elements();
     }
+    void build_source_and_target_maps(std::pair<unsigned, unsigned>);
     void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
     void get_sources_and_targets(cell_gid_type gid,
                                  std::vector<std::pair<segment_location, double>>& src,
@@ -137,9 +138,65 @@ private:
     csv_record node_types_;
     csv_record edge_types_;
 
-    std::unordered_map<cell_gid_type, std::unordered_map<source_type, unsigned>> source_maps_;
-    std::unordered_map<cell_gid_type, std::unordered_map<target_type, unsigned>> target_maps_;
+    std::unordered_map<cell_gid_type, std::vector<source_type>> source_maps_;
+    std::unordered_map<cell_gid_type, std::vector<target_type>> target_maps_;
 };
+
+void database::build_source_and_target_maps(std::pair<unsigned, unsigned> range) {
+
+    for (unsigned gid = range.first; gid < range.second; gid++) {
+        std::unordered_set<source_type> src_set;
+        std::unordered_set<target_type> tgt_set;
+
+        auto loc_node = localize(gid);
+        auto source_edge_pops = edges_of_source(loc_node.pop_id);
+        auto target_edge_pops = edges_of_target(loc_node.pop_id);
+
+        for (auto i: source_edge_pops) {
+            auto ind_id = edges_[i].find_group("indicies");
+            auto s2t_id = edges_[i][ind_id].find_group("source_to_target");
+            auto n2r_range = edges_[i][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.node_id);
+
+            for (auto j = n2r_range.first; j< n2r_range.second; j++) {
+                auto r2e = edges_[i][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
+                auto src_rng = source_range(i, r2e);
+                for (auto s: src_rng) {
+                    auto loc = src_set.find(s);
+                    if (loc == src_set.end()) {
+                        src_set.insert(s);
+                    }
+                }
+            }
+        }
+
+        for (auto i: target_edge_pops) {
+            auto ind_id = edges_[i].find_group("indicies");
+            auto t2s_id = edges_[i][ind_id].find_group("target_to_source");
+            auto n2r = edges_[i][ind_id][t2s_id].int_pair_at("node_id_to_ranges", loc_node.node_id);
+            for (auto j = n2r.first; j< n2r.second; j++) {
+                auto r2e = edges_[i][ind_id][t2s_id].int_pair_at("range_to_edge_id", j);
+                auto tgt_rng = target_range(i, r2e);
+                for (auto t: tgt_rng) {
+                    auto loc = tgt_set.find(t);
+                    if (loc == tgt_set.end()) {
+                        tgt_set.insert(t);
+                    }
+                }
+            }
+        }
+        source_maps_[gid].insert(source_maps_[gid].end(), src_set.begin(), src_set.end());
+        std::sort(source_maps_[gid].begin(), source_maps_[gid].end(), [](const auto &a, const auto& b) -> bool
+        {
+            return std::tie(a.first.segment, a.first.position, a.second) < std::tie(b.first.segment, b.first.position, b.second);
+        });
+
+        target_maps_[gid].insert(target_maps_[gid].end(), tgt_set.begin(), tgt_set.end());
+        std::sort(target_maps_[gid].begin(), target_maps_[gid].end(), [](const auto &a, const auto& b) -> bool
+        {
+            return std::tie(a.first.segment, a.first.position, a.second) < std::tie(b.first.segment, b.first.position, b.second);
+        });
+    }
+}
 
 void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns) {
     // Find cell local index in population
@@ -169,26 +226,46 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
             for(unsigned s = 0; s < src_rng.size(); s++) {
                 auto source_gid = globalize({source_pop, (cell_gid_type)src_id[s]});
 
-                auto loc = source_maps_[gid].find(src_rng[s]);
-                if (loc == source_maps_[gid].end()) {
-                    auto p = source_maps_[gid].size();
-                    source_maps_[gid][src_rng[s]] = p;
-                    sources.push_back({source_gid, (unsigned)p});
+                auto loc = std::lower_bound(source_maps_[gid].begin(), source_maps_[gid].end(), src_rng[s],
+                                [](const auto& lhs, const auto& rhs) -> bool
+                                {
+                                    return std::tie(lhs.first.segment, lhs.first.position, lhs.second) <
+                                           std::tie(rhs.first.segment, rhs.first.position, rhs.second);
+                                });
+
+                if (loc != source_maps_[gid].end()) {
+                    if (*loc == src_rng[s]) {
+                        unsigned index = loc - source_maps_[gid].begin();
+                        sources.push_back({source_gid, index});
+                    }
+                    else {
+                        throw arb::sonata_exception("source maps initialized incorrectly");
+                    }
                 }
                 else {
-                    sources.push_back({source_gid, loc->second});
+                    throw arb::sonata_exception("source maps initialized incorrectly");
                 }
             }
 
             for(unsigned t = 0; t < tgt_rng.size(); t++) {
-                auto loc = target_maps_[gid].find(tgt_rng[t]);
-                if (loc == target_maps_[gid].end()) {
-                    auto p = target_maps_[gid].size();
-                    target_maps_[gid][tgt_rng[t]] = p;
-                    targets.push_back({gid, (unsigned)p});
+                auto loc = std::lower_bound(target_maps_[gid].begin(), target_maps_[gid].end(), tgt_rng[t],
+                                         [](const auto& lhs, const auto& rhs) -> bool
+                                         {
+                                             return std::tie(lhs.first.segment, lhs.first.position, lhs.second) <
+                                                    std::tie(rhs.first.segment, rhs.first.position, rhs.second);
+                                         });
+
+                if (loc != target_maps_[gid].end()) {
+                    if (*loc == tgt_rng[t]) {
+                        unsigned index = loc - target_maps_[gid].begin();
+                        targets.push_back({gid, index});
+                    }
+                    else {
+                        throw arb::sonata_exception("target maps initialized incorrectly");
+                    }
                 }
                 else {
-                    targets.push_back({gid, loc->second});
+                    throw arb::sonata_exception("target maps initialized incorrectly");
                 }
             }
 
@@ -203,49 +280,11 @@ void database::get_sources_and_targets(cell_gid_type gid,
                              std::vector<std::pair<segment_location, double>>& src,
                              std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) {
 
-    auto loc_node = localize(gid);
-    auto source_edge_pops = edges_of_source(loc_node.pop_id);
-    auto target_edge_pops = edges_of_target(loc_node.pop_id);
+    src = source_maps_[gid];
 
-    for (auto i: source_edge_pops) {
-        auto ind_id = edges_[i].find_group("indicies");
-        auto s2t_id = edges_[i][ind_id].find_group("source_to_target");
-        auto n2r_range = edges_[i][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.node_id);
-
-        for (auto j = n2r_range.first; j< n2r_range.second; j++) {
-            auto r2e = edges_[i][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
-            auto src_rng = source_range(i, r2e);
-            for (auto s: src_rng) {
-                auto loc = source_maps_[gid].find(s);
-                if (loc == source_maps_[gid].end()) {
-                    source_maps_[gid][s] = source_maps_[gid].size();
-                }
-            }
-        }
-    }
-    src.resize(source_maps_[gid].size(), std::make_pair(segment_location(0, 0.0), 0.0));
-    for (auto s: source_maps_[gid]) {
-        src[s.second] = s.first;
-    }
-
-    for (auto i: target_edge_pops) {
-        auto ind_id = edges_[i].find_group("indicies");
-        auto t2s_id = edges_[i][ind_id].find_group("target_to_source");
-        auto n2r = edges_[i][ind_id][t2s_id].int_pair_at("node_id_to_ranges", loc_node.node_id);
-        for (auto j = n2r.first; j< n2r.second; j++) {
-            auto r2e = edges_[i][ind_id][t2s_id].int_pair_at("range_to_edge_id", j);
-            auto tgt_rng = target_range(i, r2e);
-            for (auto t: tgt_rng) {
-                auto loc = target_maps_[gid].find(t);
-                if (loc == target_maps_[gid].end()) {
-                    target_maps_[gid][t] = target_maps_[gid].size();
-                }
-            }
-        }
-    }
-    tgt.resize(target_maps_[gid].size(), std::make_pair(segment_location(0, 0.0), arb::mechanism_desc("")));
+    tgt.reserve(target_maps_[gid].size());
     for (auto t: target_maps_[gid]) {
-        tgt[t.second] = std::make_pair(t.first.first, arb::mechanism_desc(t.first.second));
+        tgt.push_back(std::make_pair(t.first, arb::mechanism_desc(t.second)));
     }
 }
 
