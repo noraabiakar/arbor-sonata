@@ -8,7 +8,7 @@ set (CMAKE_CXX_STANDARD 14)
 find_package(arbor REQUIRED)
 find_package(HDF5 REQUIRED)
 
-add_executable(sonata sonata.cpp hdf5_lib.hpp data_management_lib.hpp csv_lib.hpp)
+add_executable(sonata sonata.cpp hdf5_lib.hpp data_management_lib.hpp csv_lib.hpp mpi_helper.hpp)
 target_link_libraries(sonata PRIVATE arbor::arbor arbor::arborenv ${HDF5_C_LIBRARIES})
 target_include_directories(sonata PRIVATE ../common/cpp/include)
 

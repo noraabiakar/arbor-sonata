@@ -1,5 +1,6 @@
 #include <arbor/common_types.hpp>
 #include <arbor/util/optional.hpp>
+
 #include <string.h>
 #include <stdio.h>
 #include <hdf5.h>
@@ -8,6 +9,7 @@
 
 #include "hdf5_lib.hpp"
 #include "csv_lib.hpp"
+#include "mpi_helper.hpp"
 
 using arb::cell_gid_type;
 using arb::cell_lid_type;
@@ -15,16 +17,42 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
-using source_type = std::pair<segment_location,double>;
-using target_type = std::pair<segment_location,std::string>;
+struct source_type {
+    cell_lid_type segment;
+    double position;
+    double threshold;
+
+    source_type(): segment(0), position(0), threshold(0) {}
+    source_type(cell_lid_type s, double p, double t) : segment(s), position(p), threshold(t) {}
+};
+
+struct target_type {
+    cell_lid_type segment;
+    double position;
+    std::string synapse;
+
+    target_type(cell_lid_type s, double p, std::string m) : segment(s), position(p), synapse(m) {}
+
+    bool operator==(const target_type& rhs) {
+        return (position == rhs.position) && (segment == rhs.segment) && (synapse == rhs.synapse);
+    }
+};
+
+inline bool operator==(const source_type& lhs, const source_type& rhs) {
+    return lhs.segment   == rhs.segment && lhs.position  == rhs.position && lhs.threshold == rhs.threshold;
+}
+
+inline bool operator==(const target_type& lhs, const target_type& rhs) {
+    return lhs.position == rhs.position && lhs.segment == rhs.segment && lhs.synapse == rhs.synapse;
+}
 
 template<> struct std::hash<source_type>
 {
     std::size_t operator()(const source_type& s) const noexcept
     {
-        std::size_t const h1(std::hash<unsigned>{}(s.first.segment));
-        std::size_t const h2(std::hash<double>{}(s.first.position));
-        std::size_t const h3(std::hash<double>{}(s.second));
+        std::size_t const h1(std::hash<unsigned>{}(s.segment));
+        std::size_t const h2(std::hash<double>{}(s.position));
+        std::size_t const h3(std::hash<double>{}(s.threshold));
         auto h1_2 = h1 ^ (h2 << 1);
         return (h1_2 >> 1) ^ (h3 << 1);
     }
@@ -34,9 +62,9 @@ template<> struct std::hash<target_type>
 {
     std::size_t operator()(const target_type& s) const noexcept
     {
-        std::size_t const h1(std::hash<unsigned>{}(s.first.segment));
-        std::size_t const h2(std::hash<double>{}(s.first.position));
-        std::size_t const h3(std::hash<std::string>{}(s.second));
+        std::size_t const h1(std::hash<unsigned>{}(s.segment));
+        std::size_t const h2(std::hash<double>{}(s.position));
+        std::size_t const h3(std::hash<std::string>{}(s.synapse));
         auto h1_2 = h1 ^ (h2 << 1);
         return (h1_2 >> 1) ^ (h3 << 1);
     }
@@ -148,6 +176,13 @@ private:
 
 void database::build_source_and_target_maps(std::pair<unsigned, unsigned> range) {
 
+    // Build loc_source_gids and loc_source_sizes
+    std::vector<cell_gid_type> loc_source_gids(range.second - range.first);
+    std::iota(loc_source_gids.begin(), loc_source_gids.end(), range.first);
+
+    std::vector<unsigned> loc_source_sizes;
+    std::vector<source_type> loc_sources;
+
     for (unsigned gid = range.first; gid < range.second; gid++) {
         std::unordered_set<source_type> src_set;
         std::vector<std::pair<target_type, unsigned>> tgt_vec;
@@ -190,19 +225,50 @@ void database::build_source_and_target_maps(std::pair<unsigned, unsigned> range)
                 }
             }
         }
-        source_maps_[gid].insert(source_maps_[gid].end(), src_set.begin(), src_set.end());
-        std::sort(source_maps_[gid].begin(), source_maps_[gid].end(), [](const auto &a, const auto& b) -> bool
+
+        // Build loc_sources
+        std::vector<source_type> src_vec(src_set.begin(), src_set.end());
+        std::sort(src_vec.begin(), src_vec.end(), [](const auto &a, const auto& b) -> bool
         {
-            return std::tie(a.first.segment, a.first.position, a.second) < std::tie(b.first.segment, b.first.position, b.second);
+            return std::tie(a.segment, a.position, a.threshold) < std::tie(b.segment, b.position, b.threshold);
         });
 
-        target_maps_[gid].insert(target_maps_[gid].end(), tgt_vec.begin(), tgt_vec.end());
+        loc_sources.insert(loc_sources.end(), src_vec.begin(), src_vec.end());
+        loc_source_sizes.push_back(src_vec.size());
 
-        std::sort(target_maps_[gid].begin(), target_maps_[gid].end(), [](const auto &a, const auto& b) -> bool
+        // Build target_maps_
+        std::sort(tgt_vec.begin(), tgt_vec.end(), [](const auto &a, const auto& b) -> bool
         {
             return a.second < b.second;
         });
+        target_maps_[gid].insert(target_maps_[gid].end(), tgt_vec.begin(), tgt_vec.end());
     }
+
+#ifdef ARB_MPI_ENABLED
+    auto glob_source_gids = gather_all(loc_source_gids, MPI_COMM_WORLD);
+    auto glob_source_sizes = gather_all(loc_source_sizes, MPI_COMM_WORLD);
+    auto glob_sources = gather_all(loc_sources, MPI_COMM_WORLD);
+#else
+    auto glob_source_gids = loc_source_gids;
+    auto glob_source_sizes = loc_source_sizes;
+    auto glob_sources = loc_sources;
+#endif
+
+    // Build source_maps
+    std::vector<unsigned> glob_source_divs(glob_source_sizes.size() + 1);
+    glob_source_divs[0] = 0;
+    for (unsigned i = 1; i < glob_source_sizes.size() + 1; i++) {
+        glob_source_divs[i] = glob_source_sizes[i-1] + glob_source_divs[i-1];
+    }
+
+    for (unsigned i = 0; i < glob_source_gids.size(); i++) {
+        auto r0 = glob_source_divs[i];
+        auto r1 = glob_source_divs[i + 1];
+        auto sub_v = std::vector<source_type>(glob_sources.begin() + r0, glob_sources.begin() + r1);
+
+        source_maps_[glob_source_gids[i]] = std::move(sub_v);
+    }
+
 }
 
 void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns) {
@@ -236,8 +302,8 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
                 auto loc = std::lower_bound(source_maps_[gid].begin(), source_maps_[gid].end(), src_rng[s],
                                 [](const auto& lhs, const auto& rhs) -> bool
                                 {
-                                    return std::tie(lhs.first.segment, lhs.first.position, lhs.second) <
-                                           std::tie(rhs.first.segment, rhs.first.position, rhs.second);
+                                    return std::tie(lhs.segment, lhs.position, lhs.threshold) <
+                                           std::tie(rhs.segment, rhs.position, rhs.threshold);
                                 });
 
                 if (loc != source_maps_[gid].end()) {
@@ -287,12 +353,14 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
 void database::get_sources_and_targets(cell_gid_type gid,
                              std::vector<std::pair<segment_location, double>>& src,
                              std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) {
-
-    src = source_maps_[gid];
+    src.reserve(source_maps_[gid].size());
+    for (auto s: source_maps_[gid]) {
+        src.push_back(std::make_pair(segment_location(s.segment, s.position), s.threshold));
+    }
 
     tgt.reserve(target_maps_[gid].size());
     for (auto t: target_maps_[gid]) {
-        tgt.push_back(std::make_pair(t.first.first, arb::mechanism_desc(t.first.second)));
+        tgt.push_back(std::make_pair(segment_location(t.first.segment, t.first.position), arb::mechanism_desc(t.first.synapse)));
     }
 }
 
@@ -409,7 +477,7 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
             threshold = std::atof(edge_types_.data()[synapse_idx][loc_type_idx].c_str());
         }
 
-        ret.emplace_back(segment_location((unsigned)source_branch, source_pos), threshold);
+        ret.emplace_back((unsigned)source_branch, source_pos, threshold);
     }
     return ret;
 }
@@ -478,7 +546,7 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
             synapse = edge_types_.data()[synapse_idx][loc_type_idx];
         }
 
-        ret.emplace_back(segment_location((unsigned)target_branch, target_pos), synapse);
+        ret.emplace_back((unsigned)target_branch, target_pos, synapse);
     }
     return ret;
 }

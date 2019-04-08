@@ -183,7 +183,7 @@ int main(int argc, char **argv)
         csv_record n_t(node_def);
 
         sonata_recipe recipe(n, e, n_t, e_t);
-        recipe.build_local_maps(0, 1);
+        recipe.build_local_maps(arb::rank(context), arb::num_ranks(context));
 
         auto decomp = arb::partition_load_balance(recipe, context);
 
