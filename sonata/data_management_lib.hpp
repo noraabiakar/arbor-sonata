@@ -299,16 +299,16 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
             for(unsigned s = 0; s < src_rng.size(); s++) {
                 auto source_gid = globalize_cell({source_pop, (cell_gid_type)src_id[s]});
 
-                auto loc = std::lower_bound(source_maps_[gid].begin(), source_maps_[gid].end(), src_rng[s],
+                auto loc = std::lower_bound(source_maps_[source_gid].begin(), source_maps_[source_gid].end(), src_rng[s],
                                 [](const auto& lhs, const auto& rhs) -> bool
                                 {
                                     return std::tie(lhs.segment, lhs.position, lhs.threshold) <
                                            std::tie(rhs.segment, rhs.position, rhs.threshold);
                                 });
 
-                if (loc != source_maps_[gid].end()) {
+                if (loc != source_maps_[source_gid].end()) {
                     if (*loc == src_rng[s]) {
-                        unsigned index = loc - source_maps_[gid].begin();
+                        unsigned index = loc - source_maps_[source_gid].begin();
                         sources.push_back({source_gid, index});
                     }
                     else {
@@ -365,47 +365,11 @@ void database::get_sources_and_targets(cell_gid_type gid,
 }
 
 unsigned database::num_sources(cell_gid_type gid) {
-    auto loc_node = localize_cell(gid);
-    auto source_edge_pops = edges_of_source(loc_node.pop_id);
-
-    unsigned sum = 0;
-    for (auto i: source_edge_pops) {
-        std::vector<std::pair<int, int>> source_edge_ranges;
-
-        auto ind_id = edges_[i].find_group("indicies");
-        auto s2t_id = edges_[i][ind_id].find_group("source_to_target");
-        auto n2r_range = edges_[i][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
-        for (auto j = n2r_range.first; j< n2r_range.second; j++) {
-            auto r2e = edges_[i][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
-            source_edge_ranges.push_back(r2e);
-        }
-        for (auto r: source_edge_ranges) {
-            sum += (r.second - r.first);
-        }
-    }
-    return sum;
+    return source_maps_[gid].size();
 }
 
 unsigned database::num_targets(cell_gid_type gid) {
-    auto loc_node = localize_cell(gid);
-    auto target_edge_pops = edges_of_target(loc_node.pop_id);
-
-    unsigned sum = 0;
-    for (auto i: target_edge_pops) {
-        std::vector<std::pair<int, int>> target_edge_ranges;
-
-        auto ind_id = edges_[i].find_group("indicies");
-        auto s2t_id = edges_[i][ind_id].find_group("target_to_source");
-        auto n2r_range = edges_[i][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
-        for (auto j = n2r_range.first; j< n2r_range.second; j++) {
-            auto r2e = edges_[i][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
-            target_edge_ranges.push_back(r2e);
-        }
-        for (auto r: target_edge_ranges) {
-            sum += (r.second - r.first);
-        }
-    }
-    return sum;
+    return target_maps_[gid].size();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

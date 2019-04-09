@@ -103,7 +103,7 @@ public:
             throw arb::sonata_dataset_exception(name_, (unsigned)i);
         }
 
-        int r = out[0];
+        double r = out[0];
         delete [] out;
 
         return r;
