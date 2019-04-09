@@ -72,10 +72,10 @@ efferent_id = g0.create_dataset("efferent_section_id", (nedges,), dtype="i")
 efferent_pos = g0.create_dataset("efferent_section_pos", (nedges,), dtype="f")
 
 for i in range(0,nedges):
-    afferent_id[i] = 0
-    afferent_pos[i] = 0.5
-    efferent_id[i] = 0
-    efferent_pos[i] = 0.9
+    afferent_id[i] = i%3
+    afferent_pos[i] = float(i)/float(nedges+1)
+    efferent_id[i] = i%3
+    efferent_pos[i] = float(i)/float(nedges+1)
 
 ##################################################################################
 nedges = 2000
@@ -142,10 +142,10 @@ efferent_id = g0.create_dataset("efferent_section_id", (nedges,), dtype="i")
 efferent_pos = g0.create_dataset("efferent_section_pos", (nedges,), dtype="f")
 
 for i in range(0,nedges):
-    afferent_id[i] = 0
-    afferent_pos[i] = 0.5
-    efferent_id[i] = 0
-    efferent_pos[i] = 0.9
+    afferent_id[i] = i%3
+    afferent_pos[i] = float(i)/float(nedges+1)
+    efferent_id[i] = i%3
+    efferent_pos[i] = float(i)/float(nedges+1)
 
 ##################################################################################
 nedges = 500
@@ -211,10 +211,10 @@ efferent_id = g0.create_dataset("efferent_section_id", (nedges,), dtype="i")
 efferent_pos = g0.create_dataset("efferent_section_pos", (nedges,), dtype="f")
 
 for i in range(0,nedges):
-    afferent_id[i] = 0
-    afferent_pos[i] = 0.5
-    efferent_id[i] = 0
-    efferent_pos[i] = 0.9
+    afferent_id[i] = i%3
+    afferent_pos[i] = float(i)/float(nedges+1)
+    efferent_id[i] = i%3
+    efferent_pos[i] = float(i)/float(nedges+1)
 
 ####################################### NOT PARAMETRIZABLE ##################################
 nedges = 2000

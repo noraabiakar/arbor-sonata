@@ -52,20 +52,8 @@ public:
         return num_cells_;
     }
 
-    void build_local_maps(unsigned rank, unsigned num_ranks) {
-        unsigned base_size = num_cells_/num_ranks;
-        unsigned rem = num_cells_%num_ranks;
-
-        unsigned s = 0;
-        naive_partition_.push_back(s);
-        for (unsigned i = 0; i < num_ranks; i++) {
-            if (i < rem) {
-                s++;
-            }
-            s+= base_size;
-            naive_partition_.push_back(s);
-        }
-        database_.build_source_and_target_maps(std::make_pair(naive_partition_[rank], naive_partition_[rank+1]));
+    void build_local_maps(arb::domain_decomposition decomp) {
+        database_.build_source_and_target_maps(decomp.groups);
     }
 
     arb::util::unique_any get_cell_description(cell_gid_type gid) const override {
@@ -74,6 +62,16 @@ public:
 
         std::lock_guard<std::mutex> l(mtx_);
         database_.get_sources_and_targets(gid, src_types, tgt_types);
+
+        /*std::cout << gid << std::endl;
+        for (auto s: src_types) {
+            std::cout << "(" << s.first.segment << ", " << s.first.position << ")" << s.second << std::endl;
+        }
+        std::cout << std::endl;
+        for (auto t: tgt_types) {
+            std::cout << "(" << t.first.segment << ", " << t.first.position << ")" << t.second.name() << std::endl;
+        }
+        std::cout << std::endl;*/
 
         return dummy_cell(src_types, tgt_types);
     }
@@ -95,6 +93,11 @@ public:
 
         std::lock_guard<std::mutex> l(mtx_);
         database_.get_connections(gid, conns);
+        /*std::cout << gid << std::endl;
+        for (auto c: conns) {
+            std::cout << "(" << c.source.gid << ", " << c.source.index << ")" << " -> (" << c.dest.gid << ", " << c.dest.index << ") " << c.weight << " " << c.delay << std::endl;
+        }
+        std::cout << std::endl;*/
         return conns;
     }
 
@@ -183,9 +186,10 @@ int main(int argc, char **argv)
         csv_record n_t(node_def);
 
         sonata_recipe recipe(n, e, n_t, e_t);
-        recipe.build_local_maps(arb::rank(context), arb::num_ranks(context));
 
         auto decomp = arb::partition_load_balance(recipe, context);
+
+        recipe.build_local_maps(decomp);
 
         // Construct the model.
         arb::simulation sim(recipe, decomp, context);
@@ -269,11 +273,11 @@ arb::cable_cell dummy_cell(
     soma->add_mechanism("hh");
 
     auto dend = cell.add_cable(0, arb::section_kind::dendrite, 3.0/2.0, 3.0/2.0, 300); //cable 1
-    dend->set_compartments(100);
+    dend->set_compartments(200);
     dend->add_mechanism("pas");
 
     auto dend1 = cell.add_cable(1, arb::section_kind::dendrite, 3.0/2.0, 3.0/2.0, 300); //cable 2
-    dend1->set_compartments(100);
+    dend1->set_compartments(200);
     dend1->add_mechanism("pas");
 
     // Add spike threshold detector at the soma.
