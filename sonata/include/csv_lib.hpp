@@ -1,11 +1,7 @@
 #include <arbor/common_types.hpp>
-#include <arbor/util/optional.hpp>
-#include <string.h>
-#include <stdio.h>
-#include <hdf5.h>
-#include <assert.h>
 
-using arb::cell_size_type;
+#include <string>
+#include <fstream>
 
 class csv_file {
     std::string fileName;

@@ -37,6 +37,7 @@ cmake_args="$cmake_args -DARB_WITH_MPI=$_with_mpi"
 cmake_args="$cmake_args -DARB_WITH_GPU=$_arb_with_gpu"
 cmake_args="$cmake_args -DARB_ARCH=$_arb_arch"
 cmake_args="$cmake_args -DARB_VECTORIZE=$_arb_vectorize"
+cmake_args="$cmake_args -DARB_WITH_PROFILING=OFF"
 msg "ARBOR: cmake $cmake_args"
 cmake "$arb_repo_path" $cmake_args >> "$out" 2>&1
 [ $? != 0 ] && exit_on_error "see ${out}"

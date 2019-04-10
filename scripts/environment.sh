@@ -47,8 +47,8 @@ default_environment() {
 
     # Arbor specific
 
-    _arb_git_repo=https://github.com/noraabiakar/arbor.git
-    _arb_branch=sonata
+    _arb_git_repo=https://github.com/arbor-sim/arbor.git
+    _arb_branch=master
 
     _arb_arch=native
     _arb_with_gpu=OFF

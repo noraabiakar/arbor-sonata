@@ -1,13 +1,13 @@
-#include <arbor/common_types.hpp>
-#include <arbor/util/optional.hpp>
-#include <string.h>
-#include <stdio.h>
+#pragma once
+
+#include <iostream>
+#include <string>
+
 #include <hdf5.h>
-#include <assert.h>
+
+#include "sonata_excpetions.hpp"
 
 #define MAX_NAME 1024
-
-using arb::cell_size_type;
 
 class h5_dataset {
 private:
@@ -65,7 +65,7 @@ public:
         H5Dclose(id_);
 
         if (status < 0 ) {
-            throw arb::sonata_dataset_exception(name_, (unsigned)i);
+            throw sonata_dataset_exception(name_, (unsigned)i);
         }
 
         int r = out[0];
@@ -100,7 +100,7 @@ public:
         H5Dclose(id_);
 
         if (status < 0) {
-            throw arb::sonata_dataset_exception(name_, (unsigned)i);
+            throw sonata_dataset_exception(name_, (unsigned)i);
         }
 
         double r = out[0];
@@ -135,7 +135,7 @@ public:
         H5Dclose(id_);
 
         if (status < 0) {
-            throw arb::sonata_dataset_exception(name_, (unsigned)i);
+            throw sonata_dataset_exception(name_, (unsigned)i);
         }
 
         int r = out[0];
@@ -166,7 +166,7 @@ public:
         H5Dclose(id_);
 
         if (status < 0) {
-            throw arb::sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
+            throw sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
         }
 
         std::vector<int> out(rdata, rdata + count);
@@ -197,7 +197,7 @@ public:
         H5Dclose(id_);
 
         if (status < 0) {
-            throw arb::sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
+            throw sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
         }
 
         std::vector<double> out(rdata, rdata + count);
@@ -239,7 +239,7 @@ public:
         H5Dclose(id_);
 
         if (status0 < 0 || status1 < 0) {
-            throw arb::sonata_dataset_exception(name_, (unsigned)i);
+            throw sonata_dataset_exception(name_, (unsigned)i);
         }
 
         return std::make_pair(out_0, out_1);
@@ -254,7 +254,7 @@ public:
         H5Dclose(id_);
 
         if (status < 0) {
-            throw arb::sonata_dataset_exception(name_);
+            throw sonata_dataset_exception(name_);
         }
 
         std::vector<int> out(out_a, out_a + size_);
@@ -271,7 +271,7 @@ public:
         H5Dclose(id_);
 
         if (status < 0) {
-            throw arb::sonata_dataset_exception(name_);
+            throw sonata_dataset_exception(name_);
         }
 
         std::vector<std::pair<int, int>> out(size_);
@@ -428,21 +428,21 @@ public:
         if (find_dataset(name) != -1) {
             return ptr->datasets_[dset_map[name]]->int_at(i);
         }
-        throw arb::sonata_dataset_exception(name);
+        throw sonata_dataset_exception(name);
     }
 
     double double_at(std::string name, unsigned i) {
         if (find_dataset(name) != -1) {
             return ptr->datasets_[dset_map[name]]->double_at(i);
         }
-        throw arb::sonata_dataset_exception(name);
+        throw sonata_dataset_exception(name);
     }
 
     std::string string_at(std::string name, unsigned i) {
         if (find_dataset(name) != -1) {
             return std::to_string(ptr->datasets_[dset_map[name]]->string_at(i));
         }
-        throw arb::sonata_dataset_exception(name);
+        throw sonata_dataset_exception(name);
     }
 
     std::vector<int> int_range(std::string name, unsigned i, unsigned j) {
@@ -453,42 +453,42 @@ public:
                 return {ptr->datasets_[dset_map[name]]->int_at(i)};
             }
         }
-        throw arb::sonata_dataset_exception(name);
+        throw sonata_dataset_exception(name);
     }
 
     std::vector<double> double_range(std::string name, unsigned i, unsigned j) {
         if (find_dataset(name)!= -1) {
             return ptr->datasets_[dset_map[name]]->double_range(i, j);
         }
-        throw arb::sonata_dataset_exception(name);
+        throw sonata_dataset_exception(name);
     }
 
     std::pair<int, int> int_pair_at(std::string name, unsigned i) {
         if (find_dataset(name)!= -1) {
             return ptr->datasets_[dset_map[name]]->int_pair_at(i);
         }
-        throw arb::sonata_dataset_exception(name);
+        throw sonata_dataset_exception(name);
     }
 
     std::vector<int> int_1d(std::string name) {
         if (find_dataset(name)!= -1) {
             return ptr->datasets_[dset_map[name]]->int_1d();
         }
-        throw arb::sonata_dataset_exception(name);
+        throw sonata_dataset_exception(name);
     }
 
     std::vector<std::pair<int, int>> int_2d(std::string name) {
         if (find_dataset(name)!= -1) {
             return ptr->datasets_[dset_map[name]]->int_2d();
         }
-        throw arb::sonata_dataset_exception(name);
+        throw sonata_dataset_exception(name);
     }
 
     h5_wrapper operator [](unsigned i) const {
         if (i < members.size() && i >= 0) {
             return members[i];
         }
-        throw arb::sonata_exception("h5_wrapper index out of range");
+        throw sonata_exception("h5_wrapper index out of range");
     }
 
     std::string name() {
@@ -507,7 +507,7 @@ class hdf5_record {
 public:
     hdf5_record(const std::shared_ptr<h5_file>& file) {
         if (file->top_group_->groups_.size() != 1) {
-            throw arb::sonata_exception("file hierarchy wrong\n");
+            throw sonata_exception("file hierarchy wrong\n");
         }
 
         unsigned idx = 0;
@@ -530,13 +530,13 @@ public:
     void verify_edges() {
         for (auto& p: populations()) {
             if (p.find_group("indicies") == -1) {
-                throw arb::sonata_exception("indicies group must be available in all edge population groups ");
+                throw sonata_exception("indicies group must be available in all edge population groups ");
             }
             if (p.find_dataset("edge_type_id") == -1) {
-                throw arb::sonata_exception("edge_type_id dataset not provided in edge populations");
+                throw sonata_exception("edge_type_id dataset not provided in edge populations");
             }
             if (p.find_dataset("edge_id") != -1) {
-                throw arb::sonata_exception("edge_id datasets not supported; "
+                throw sonata_exception("edge_id datasets not supported; "
                                             "ids are automatically assigned contiguously starting from 0");
             }
         }
@@ -545,10 +545,10 @@ public:
     void verify_nodes() {
         for (auto& p: populations()) {
             if (p.find_dataset("node_type_id") == -1) {
-                throw arb::sonata_exception("node_type_id dataset not provided in node populations");
+                throw sonata_exception("node_type_id dataset not provided in node populations");
             }
             if (p.find_dataset("node_id") != -1) {
-                throw arb::sonata_exception("node_id datasets not supported; "
+                throw sonata_exception("node_id datasets not supported; "
                                             "ids are automatically assigned contiguously starting from 0");
             }
         }
@@ -566,7 +566,7 @@ public:
         return populations_;
     }
 
-    std::vector<cell_size_type> partitions() {
+    std::vector<unsigned> partitions() {
         return partition_;
     }
 
@@ -576,7 +576,7 @@ public:
 
 private:
     int num_elements_ = 0;
-    std::vector<cell_size_type> partition_;
+    std::vector<unsigned> partition_;
     std::vector<h5_wrapper> populations_;
     std::unordered_map<std::string, unsigned> map_;
 };

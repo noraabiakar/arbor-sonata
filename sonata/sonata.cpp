@@ -52,7 +52,7 @@ public:
         return num_cells_;
     }
 
-    void build_local_maps(arb::domain_decomposition decomp) {
+    void build_local_maps(const arb::domain_decomposition& decomp) {
         database_.build_source_and_target_maps(decomp.groups);
     }
 

@@ -1,14 +1,13 @@
 #pragma once
 
-#include <algorithm>
-#include <iostream>
 #include <type_traits>
 #include <vector>
+#include <numeric>
 
 #include <mpi.h>
 
 #define MPI_OR_THROW(fn, ...)\
-while (int r_ = fn(__VA_ARGS__)) throw arb::sonata_exception("MPI error");
+while (int r_ = fn(__VA_ARGS__)) throw sonata_exception("MPI error");
 
 int rank(MPI_Comm comm) {
     int r;
