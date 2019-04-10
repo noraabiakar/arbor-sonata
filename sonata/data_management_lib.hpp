@@ -46,7 +46,8 @@ inline bool operator==(const target_type& lhs, const target_type& rhs) {
     return lhs.position == rhs.position && lhs.segment == rhs.segment && lhs.synapse == rhs.synapse;
 }
 
-template<> struct std::hash<source_type>
+namespace std {
+template<> struct hash<source_type>
 {
     std::size_t operator()(const source_type& s) const noexcept
     {
@@ -58,7 +59,7 @@ template<> struct std::hash<source_type>
     }
 };
 
-template<> struct std::hash<target_type>
+template<> struct hash<target_type>
 {
     std::size_t operator()(const target_type& s) const noexcept
     {
@@ -69,6 +70,7 @@ template<> struct std::hash<target_type>
         return (h1_2 >> 1) ^ (h3 << 1);
     }
 };
+}
 
 class database {
 public:

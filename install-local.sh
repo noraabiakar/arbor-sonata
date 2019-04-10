@@ -1,6 +1,24 @@
 unset CDPATH
 _base_path=$(cd "${BASH_SOURCE[0]%/*}"; pwd)
 _prefix=${PREFIX:-$(pwd)}
+_environment=
+
+while [ "$1" != "" ]
+do
+    case $1 in
+        --env=* )
+            ns_environment=${1#--env=}
+            ;;
+        --env )
+            shift
+            ns_environment=$1
+            ;;
+        * )
+            echo "unknown option '$1'"
+            exit 1
+    esac
+    shift
+done
 
 # Load utility functions and set up default environment.
 
@@ -10,6 +28,19 @@ _prefix=$(full_path "$_prefix")
 
 source "$_base_path/scripts/environment.sh"
 default_environment
+
+# Run a user supplied configuration script if it was provided with the -e flag.
+# This will make changes to the configuration variables ns_* set in environment()
+
+if [ "$ns_environment" != "" ]; then
+    msg "using additional configuration: $ns_environment"
+    if [ ! -f "$ns_environment" ]; then
+        err "file '$ns_environment' not found"
+        exit 1
+    fi
+    source "$ns_environment"
+    echo
+fi
 
 echo
 msg "---- PATHS ----"
