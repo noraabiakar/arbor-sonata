@@ -76,15 +76,6 @@ exit_on_error() {
     exit 1
 }
 
-find_paths() {
-    local tmp=""
-    for path in `find $ns_base_path/install -type d -name $2`
-    do
-        tmp="$path:$tmp"
-    done
-    export $1=$tmp
-}
-
 # Find the absolute path from a relative path
 full_path() {
     echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"

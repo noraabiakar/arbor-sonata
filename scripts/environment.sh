@@ -1,14 +1,14 @@
 # Set the base paths to working directories.
 # Variables defined here use the prefix _
 set_working_paths() {
-    if [ -z "$_prefix" ]; then
-        echo "error: empty _prefix"
+    if [ -z "$prefix" ]; then
+        echo "error: empty prefix"
         exit 1
     fi
 
     # Paths to working directories
-    export _install_path="$_prefix/install"
-    export _build_path="$_prefix/build"
+    export install_path="$prefix/install"
+    export build_path="$prefix/build"
 }
 
 # Sets up the default enviroment.
@@ -18,40 +18,40 @@ default_environment() {
 
     # Detect OS
     case "$OSTYPE" in
-      linux*)   _system=linux ;;
-      darwin*)  _system=apple ;;
+      linux*)   system=linux ;;
+      darwin*)  system=apple ;;
       *)        err "unsuported OS: $OSTYPE"; exit 1 ;;
     esac
 
     # Choose compiler based on OS
-    if [ "$_system" = "linux" ]; then
-        _cc=$(which gcc)
-        _cxx=$(which g++)
-    elif [ "$_system" = "apple" ]; then
-        _cc=$(which clang)
-        _cxx=$(which clang++)
+    if [ "$system" = "linux" ]; then
+        cc=$(which gcc)
+        cxx=$(which g++)
+    elif [ "$system" = "apple" ]; then
+        cc=$(which clang)
+        cxx=$(which clang++)
     fi
 
     # use MPI if we can find it
-    _with_mpi=OFF
+    with_mpi=OFF
     command -v mpicc &> /dev/null
     [ $? = 0 ] && command -v mpic++ &> /dev/null
     if [ $? = 0 ]; then
-        _with_mpi=ON
-        _cc=$(which mpicc)
-        _cxx=$(which mpic++)
+        with_mpi=ON
+        cc=$(which mpicc)
+        cxx=$(which mpic++)
     fi
 
     # set the number of parallel build tasks
-    _makej=6
+    makej=6
 
     # Arbor specific
 
-    _arb_git_repo=https://github.com/arbor-sim/arbor.git
-    _arb_branch=master
+    arb_git_repo=https://github.com/arbor-sim/arbor.git
+    arb_branch=master
 
-    _arb_arch=native
-    _arb_with_gpu=OFF
-    _arb_vectorize=ON
+    arb_arch=native
+    arb_with_gpu=OFF
+    arb_vectorize=ON
 }
 

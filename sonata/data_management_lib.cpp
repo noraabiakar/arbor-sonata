@@ -45,8 +45,6 @@ namespace std {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// database
-
 void database::build_source_and_target_maps(const std::vector<arb::group_description>& groups) {
     // Build loc_source_gids and loc_source_sizes
     std::vector<cell_gid_type> loc_source_gids;

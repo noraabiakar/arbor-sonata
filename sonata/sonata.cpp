@@ -63,16 +63,6 @@ public:
         std::lock_guard<std::mutex> l(mtx_);
         database_.get_sources_and_targets(gid, src_types, tgt_types);
 
-        /*std::cout << gid << std::endl;
-        for (auto s: src_types) {
-            std::cout << "(" << s.first.segment << ", " << s.first.position << ")" << s.second << std::endl;
-        }
-        std::cout << std::endl;
-        for (auto t: tgt_types) {
-            std::cout << "(" << t.first.segment << ", " << t.first.position << ")" << t.second.name() << std::endl;
-        }
-        std::cout << std::endl;*/
-
         return dummy_cell(src_types, tgt_types);
     }
 
@@ -93,11 +83,7 @@ public:
 
         std::lock_guard<std::mutex> l(mtx_);
         database_.get_connections(gid, conns);
-        /*std::cout << gid << std::endl;
-        for (auto c: conns) {
-            std::cout << "(" << c.source.gid << ", " << c.source.index << ")" << " -> (" << c.dest.gid << ", " << c.dest.index << ") " << c.weight << " " << c.delay << std::endl;
-        }
-        std::cout << std::endl;*/
+
         return conns;
     }
 
