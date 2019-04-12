@@ -1,7 +1,9 @@
-#include "arbor/version.hpp"
+#include <arbor/version.hpp>
+#include <arbor/mechcat.hpp>
 
 #include "data_management_lib.hpp"
 #include "include/mpi_helper.hpp"
+#include "include/json_helper.hpp"
 
 using arb::cell_gid_type;
 using arb::cell_lid_type;
@@ -17,6 +19,11 @@ inline bool operator==(const target_type& lhs, const target_type& rhs) {
     return lhs.position == rhs.position && lhs.segment == rhs.segment && lhs.synapse == rhs.synapse;
 }
 
+bool operator==(const arb::mechanism_desc &lhs, const arb::mechanism_desc &rhs)
+{
+    return lhs.name() == rhs.name() && lhs.values() == rhs.values();
+}
+
 namespace std {
     template<> struct hash<source_type>
     {
@@ -25,18 +32,6 @@ namespace std {
             std::size_t const h1(std::hash<unsigned>{}(s.segment));
             std::size_t const h2(std::hash<double>{}(s.position));
             std::size_t const h3(std::hash<double>{}(s.threshold));
-            auto h1_2 = h1 ^ (h2 << 1);
-            return (h1_2 >> 1) ^ (h3 << 1);
-        }
-    };
-
-    template<> struct hash<target_type>
-    {
-        std::size_t operator()(const target_type& s) const noexcept
-        {
-            std::size_t const h1(std::hash<unsigned>{}(s.segment));
-            std::size_t const h2(std::hash<double>{}(s.position));
-            std::size_t const h3(std::hash<std::string>{}(s.synapse));
             auto h1_2 = h1 ^ (h2 << 1);
             return (h1_2 >> 1) ^ (h3 << 1);
         }
@@ -231,7 +226,7 @@ void database::get_sources_and_targets(cell_gid_type gid,
 
     tgt.reserve(target_maps_[gid].size());
     for (auto t: target_maps_[gid]) {
-        tgt.push_back(std::make_pair(segment_location(t.first.segment, t.first.position), arb::mechanism_desc(t.first.synapse)));
+        tgt.push_back(std::make_pair(segment_location(t.first.segment, t.first.position), t.first.synapse));
     }
 }
 
@@ -381,7 +376,32 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
             synapse = edge_types_.data()[synapse_idx][loc_type_idx];
         }
 
-        ret.emplace_back((unsigned)target_branch, target_pos, synapse);
+        // After finding the synapse, set the parameters
+        std::unordered_map<std::string, double> syn_params;
+        if (edge_types_.map().find("dynamics_params") != edge_types_.map().end()) {
+            unsigned dyn_params_idx = edge_types_.map()["dynamics_params"];
+            std::string dyn_params =  edge_types_.data()[dyn_params_idx][loc_type_idx];
+            syn_params = std::move(read_dynamics_params_single(dyn_params));
+        }
+
+        auto cat = arb::global_default_catalogue();
+        for (auto p: cat[synapse].parameters) {
+            if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
+                auto lgi = edges_[edge_pop_id].find_group(std::to_string(loc_grp_id));
+                auto group = edges_[edge_pop_id][lgi];
+                auto loc_grp_idx = edges_grp_idx[i];
+                if (group.find_dataset(p.first) != -1) {
+                    syn_params[p.first] = group.double_at("afferent_section_id", loc_grp_idx);
+                }
+            }
+        }
+
+        auto syn = arb::mechanism_desc(synapse);
+        for (auto p: syn_params) {
+            syn.set(p.first, p.second);
+        }
+
+        ret.emplace_back((unsigned)target_branch, target_pos, syn);
     }
     return ret;
 }

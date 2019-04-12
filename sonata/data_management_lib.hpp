@@ -26,12 +26,14 @@ struct source_type {
     source_type(cell_lid_type s, double p, double t) : segment(s), position(p), threshold(t) {}
 };
 
+bool operator==(const arb::mechanism_desc &lhs, const arb::mechanism_desc &rhs);
+
 struct target_type {
     cell_lid_type segment;
     double position;
-    std::string synapse;
+    arb::mechanism_desc synapse;
 
-    target_type(cell_lid_type s, double p, std::string m) : segment(s), position(p), synapse(m) {}
+    target_type(cell_lid_type s, double p, arb::mechanism_desc m) : segment(s), position(p), synapse(m) {}
 
     bool operator==(const target_type& rhs) {
         return (position == rhs.position) && (segment == rhs.segment) && (synapse == rhs.synapse);
