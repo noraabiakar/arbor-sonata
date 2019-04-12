@@ -36,33 +36,39 @@ public:
 
 class csv_record {
 public:
-    csv_record(csv_file f) {
-        auto csv_data = f.get_data();
+    csv_record(std::vector<csv_file> files) {
+        for (auto f: files) {
+            auto csv_data = f.get_data();
+            auto vec = csv_data.front();
 
-        unsigned count = 0;
-        auto vec = csv_data.front();
-        for (auto field: vec) {
-            field_map_[field] = count++;
-        }
+            std::unordered_map<std::string, std::string> part_data(csv_data.front().size() - 1);
+            unsigned part_data_type;
 
-        data_.resize(count);
-        for(auto it = csv_data.begin()+1; it < csv_data.end(); it++) {
-            unsigned loc = 0;
-            for (auto field: *it) {
-                data_[loc++].push_back(field);
-            };
+            for(auto it = csv_data.begin()+1; it < csv_data.end(); it++) {
+                unsigned loc = 0;
+                for (auto field: *it) {
+                    if (vec[loc].find("type_id") != std::string::npos) {
+                        part_data_type = std::atoi(field.c_str());
+                    }
+                    else {
+                        part_data[vec[loc]] = field;
+                    }
+                    loc++;
+                }
+                data_[part_data_type] = part_data;
+            }
         }
     }
 
-    std::unordered_map<std::string, unsigned> map() {
-        return field_map_;
-    }
 
-    std::vector<std::vector<std::string>> data() {
+    std::unordered_map<unsigned, std::unordered_map<std::string, std::string>> data() {
         return data_;
     }
 
+    std::unordered_map<std::string, std::string> fields(unsigned type) {
+        return data_[type];
+    }
+
 private:
-    std::unordered_map<std::string, unsigned> field_map_;
-    std::vector<std::vector<std::string>> data_;
+    std::unordered_map<unsigned, std::unordered_map<std::string, std::string>> data_;
 };

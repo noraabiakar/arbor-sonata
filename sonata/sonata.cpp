@@ -174,8 +174,8 @@ int main(int argc, char **argv)
         hdf5_record e({edges_0, edges_1, edges_2, edges_3});
         e.verify_edges();
 
-        csv_record e_t(edge_def);
-        csv_record n_t(node_def);
+        csv_record e_t({edge_def});
+        csv_record n_t({node_def});
 
         sonata_recipe recipe(n, e, n_t, e_t);
 
