@@ -157,15 +157,21 @@ int main(int argc, char **argv)
         // Create an instance of our recipe.
         using h5_file_handle = std::shared_ptr<h5_file>;
 
-        h5_file_handle nodes = std::make_shared<h5_file>(params.nodes_hdf5);
-        h5_file_handle edges = std::make_shared<h5_file>(params.edges_hdf5);
+        h5_file_handle nodes_0 = std::make_shared<h5_file>(params.nodes_0);
+        h5_file_handle nodes_1 = std::make_shared<h5_file>(params.nodes_1);
+
+        h5_file_handle edges_0 = std::make_shared<h5_file>(params.edges_0);
+        h5_file_handle edges_1 = std::make_shared<h5_file>(params.edges_1);
+        h5_file_handle edges_2 = std::make_shared<h5_file>(params.edges_2);
+        h5_file_handle edges_3 = std::make_shared<h5_file>(params.edges_3);
+
         csv_file node_def(params.nodes_csv);
         csv_file edge_def(params.edges_csv);
 
-        hdf5_record n(nodes);
+        hdf5_record n({nodes_0, nodes_1});
         n.verify_nodes();
 
-        hdf5_record e(edges);
+        hdf5_record e({edges_0, edges_1, edges_2, edges_3});
         e.verify_edges();
 
         csv_record e_t(edge_def);
