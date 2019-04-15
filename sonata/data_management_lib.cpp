@@ -229,6 +229,27 @@ void database::get_sources_and_targets(cell_gid_type gid,
     }
 }
 
+arb::morphology database::get_cell_morphology(cell_gid_type gid) {
+    auto loc_node = localize_cell(gid);
+    auto group_id = nodes_[loc_node.pop_id].int_at("node_group_id", loc_node.el_id);
+    auto group_idx = nodes_[loc_node.pop_id].int_at("node_group_index", loc_node.el_id);
+
+    if (nodes_[loc_node.pop_id].find_group(std::to_string(group_id)) != -1) {
+        auto lgi = nodes_[loc_node.pop_id].find_group(std::to_string(group_id));
+        auto group = nodes_[loc_node.pop_id][lgi];
+        if (group.find_dataset("morphology") != -1) {
+            auto file = group.string_at("morphology", group_idx);
+
+            std::ifstream f(file);
+            if (!f) throw sonata_exception("Unable to open SWC file");
+            return arb::swc_as_morphology(arb::parse_swc_file(f));
+        }
+    }
+
+    auto type_id = nodes_[loc_node.pop_id].int_at("node_type_id", loc_node.el_id);
+    return node_types_.morph(type_id);
+}
+
 unsigned database::num_sources(cell_gid_type gid) {
     return source_maps_[gid].size();
 }

@@ -1,4 +1,5 @@
 #include <arbor/common_types.hpp>
+#include <arbor/swcio.hpp>
 
 #include <string>
 #include <fstream>
@@ -48,24 +49,31 @@ public:
             auto col_names = csv_data.front();
 
             for(auto it = csv_data.begin()+1; it < csv_data.end(); it++) {
-                std::unordered_map<std::string, std::string> part_data(csv_data.front().size() - 1);
+                std::unordered_map<std::string, std::string> type_fields(csv_data.front().size() - 1);
                 std::unordered_map<std::string, std::unordered_map<std::string, double>> type_params;
-                unsigned part_data_type, loc = 0;
+                arb::morphology type_morph;
+                unsigned type_id, loc = 0;
 
                 for (auto field: *it) {
-                    if (col_names[loc].find("dynamics_params") != std::string::npos) {
+                    if (col_names[loc] == "morphology") {
+                        std::ifstream f(field);
+                        if (!f) throw sonata_exception("Unable to open SWC file");
+                        type_morph = arb::swc_as_morphology(arb::parse_swc_file(f));
+                    }
+                    if (col_names[loc] == "dynamics_params") {
                         type_params = read_dynamics_params_multiple(field);
                     }
                     if (col_names[loc].find("type_id") != std::string::npos) {
-                        part_data_type = std::atoi(field.c_str());
+                        type_id = std::atoi(field.c_str());
                     }
                     else {
-                        part_data[col_names[loc]] = field;
+                        type_fields[col_names[loc]] = field;
                     }
                     loc++;
                 }
-                data_[part_data_type] = part_data;
-                dynamics_params_[part_data_type] = type_params;
+                data_[type_id] = type_fields;
+                dynamics_params_[type_id] = type_params;
+                morphologies_[type_id] = type_morph;
             }
         }
     }
@@ -80,14 +88,21 @@ public:
         if (dynamics_params_.find(type) != dynamics_params_.end()) {
             return dynamics_params_[type];
         }
-        throw sonata_exception("Requested CSV dynamics_params not available\n");
+        throw sonata_exception("Requested CSV dynamics_params not available");
+    }
+
+    arb::morphology morph(unsigned type) {
+        if (morphologies_.find(type) != morphologies_.end()) {
+            return morphologies_[type];
+        }
+        throw sonata_exception("Requested morphology not found");
     }
 
     std::unordered_map<std::string, std::string> fields(unsigned type) {
         if (data_.find(type) != data_.end()) {
             return data_[type];
         }
-        throw sonata_exception("Requested CSV column not found\n");
+        throw sonata_exception("Requested CSV column not found");
     }
 
 private:
@@ -99,4 +114,7 @@ private:
      std::unordered_map<std::string, // mechanism
      std::unordered_map<std::string, // parameter
      double>>> dynamics_params_;
+
+    // Map from type_id to map of fields and values
+    std::unordered_map<unsigned, arb::morphology> morphologies_;
 };

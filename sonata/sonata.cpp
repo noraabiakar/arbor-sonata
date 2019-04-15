@@ -35,6 +35,7 @@ using arb::cell_probe_address;
 
 // Generate a cell.
 arb::cable_cell dummy_cell(
+        arb::morphology morph,
         std::vector<std::pair<arb::segment_location, double>>,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>>);
 
@@ -59,9 +60,10 @@ public:
         std::vector<std::pair<arb::segment_location,arb::mechanism_desc>> tgt_types;
 
         std::lock_guard<std::mutex> l(mtx_);
+        auto morph = database_.get_cell_morphology(gid);
         database_.get_sources_and_targets(gid, src_types, tgt_types);
 
-        return dummy_cell(src_types, tgt_types);
+        return dummy_cell(morph, src_types, tgt_types);
     }
 
     cell_kind get_cell_kind(cell_gid_type gid) const override { return cell_kind::cable; }
@@ -252,23 +254,22 @@ int main(int argc, char **argv)
 
 
 arb::cable_cell dummy_cell(
+        arb::morphology morph,
         std::vector<std::pair<arb::segment_location, double>> detectors,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> synapses) {
 
-    arb::cable_cell cell;
+    arb::cable_cell cell = arb::make_cable_cell(morph);
 
-    // Add soma.
-    auto soma = cell.add_soma(12.6157/2.0); // For area of 500 μm².
-    soma->rL = 100;
-    soma->add_mechanism("hh");
-
-    auto dend = cell.add_cable(0, arb::section_kind::dendrite, 3.0/2.0, 3.0/2.0, 300); //cable 1
-    dend->set_compartments(200);
-    dend->add_mechanism("pas");
-
-    auto dend1 = cell.add_cable(1, arb::section_kind::dendrite, 3.0/2.0, 3.0/2.0, 300); //cable 2
-    dend1->set_compartments(200);
-    dend1->add_mechanism("pas");
+    for (auto& segment: cell.segments()) {
+        if (segment->is_soma()) {
+            segment->rL = 100;
+            segment->add_mechanism("hh");
+        }
+        else {
+            segment->add_mechanism("pas");
+            segment->set_compartments(200);
+        }
+    }
 
     // Add spike threshold detector at the soma.
     for (auto d: detectors) {

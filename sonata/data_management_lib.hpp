@@ -56,6 +56,7 @@ public:
     void get_sources_and_targets(cell_gid_type gid,
                                  std::vector<std::pair<segment_location, double>>& src,
                                  std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt);
+    arb::morphology get_cell_morphology(cell_gid_type gid);
     unsigned num_sources(cell_gid_type gid);
     unsigned num_targets(cell_gid_type gid);
 
