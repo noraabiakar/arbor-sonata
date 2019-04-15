@@ -3,7 +3,6 @@
 
 #include "data_management_lib.hpp"
 #include "include/mpi_helper.hpp"
-#include "include/json_helper.hpp"
 
 using arb::cell_gid_type;
 using arb::cell_lid_type;
@@ -309,6 +308,8 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
     auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
 
+    auto cat = arb::global_default_catalogue();
+
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
         auto loc_grp_id = edges_grp_id[i];
 
@@ -345,21 +346,35 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
         auto e_fields = edge_types_.fields(e_type);
 
         if (!found_target_branch) {
-            target_branch = std::atoi(e_fields["afferent_section_id"].c_str());
+            if (e_fields.find("afferent_section_id") != e_fields.end()) {
+                target_branch = std::atoi(e_fields["afferent_section_id"].c_str());
+            } else {
+                throw sonata_exception("Afferent Section ID missing");
+            }
         }
         if (!found_target_pos) {
-            target_pos = std::atof(e_fields["afferent_section_pos"].c_str());
+            if (e_fields.find("afferent_section_pos") != e_fields.end()) {
+                target_pos = std::atof(e_fields["afferent_section_pos"].c_str());
+            } else {
+                throw sonata_exception("Afferent Section pos missing");
+            }
         }
         if (!found_synapse) {
-            synapse = e_fields["model_template"];
+            if (e_fields.find("model_template") != e_fields.end()) {
+                synapse = e_fields["model_template"];
+            } else {
+                throw sonata_exception("Model Template missing");
+            }
         }
 
         // After finding the synapse, set the parameters
         std::unordered_map<std::string, double> syn_params;
-        std::string dyn_params =  e_fields["dynamics_params"];
-        syn_params = std::move(read_dynamics_params_single(dyn_params));
 
-        auto cat = arb::global_default_catalogue();
+        auto dyn_params = edge_types_.dyn_params(e_type);
+        if (dyn_params.find(synapse) != dyn_params.end()) {
+            syn_params = dyn_params[synapse];
+        }
+
         for (auto p: cat[synapse].parameters) {
             if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
                 auto lgi = edges_[edge_pop_id].find_group(std::to_string(loc_grp_id));
@@ -412,7 +427,11 @@ std::vector<double> database::weight_range(unsigned edge_pop_id, std::pair<unsig
         auto e_fields = edge_types_.fields(e_type);
 
         if (!found_weight) {
-            weight = std::atof(e_fields["syn_weight"].c_str());
+            if (e_fields.find("syn_weight") != e_fields.end()) {
+                weight = std::atof(e_fields["syn_weight"].c_str());
+            } else {
+                throw sonata_exception("Synapse weight missing");
+            }
         }
         ret.emplace_back(weight);
     }
@@ -450,7 +469,12 @@ std::vector<double> database::delay_range(unsigned edge_pop_id, std::pair<unsign
         auto e_fields = edge_types_.fields(e_type);
 
         if (!found_delay) {
-            delay = std::atof(e_fields["delay"].c_str());
+
+            if (e_fields.find("delay") != e_fields.end()) {
+                delay = std::atof(e_fields["delay"].c_str());
+            } else {
+                throw sonata_exception("Synapse delay missing");
+            }
         }
         ret.emplace_back(delay);
     }

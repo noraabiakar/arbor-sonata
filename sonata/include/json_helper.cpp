@@ -18,7 +18,8 @@ std::unordered_map<std::string, double> read_dynamics_params_single(std::string 
     return json.get<std::unordered_map<std::string, double>>();
 }
 
-auto read_dynamics_params_multiple(std::string fname) {
+std::unordered_map<std::string, std::unordered_map<std::string, double>>
+read_dynamics_params_multiple(std::string fname) {
     using sup::param_from_json;
 
     std::unordered_map<std::string, std::unordered_map<std::string, double>> params;

@@ -2,8 +2,6 @@
 #include <iomanip>
 #include <iostream>
 
-#include <nlohmann/json.hpp>
-
 #include <arbor/assert_macro.hpp>
 #include <arbor/common_types.hpp>
 #include <arbor/context.hpp>
