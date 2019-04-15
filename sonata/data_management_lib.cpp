@@ -391,9 +391,12 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
         // After finding the synapse, set the parameters
         std::unordered_map<std::string, double> syn_params;
 
-        auto dyn_params = edge_types_.dyn_params(e_type);
-        if (dyn_params.find(synapse) != dyn_params.end()) {
-            syn_params = dyn_params[synapse];
+        arb::mechanism_desc syn(synapse);
+        auto mech_map = edge_types_.mech_map(e_type);
+        if (mech_map.find(synapse)!= mech_map.end()) {
+            for (auto v: mech_map.at(synapse).values()) {
+                syn.set(v.first, v.second);
+            };
         }
 
         for (auto p: cat[synapse].parameters) {
@@ -407,7 +410,6 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
             }
         }
 
-        auto syn = arb::mechanism_desc(synapse);
         for (auto p: syn_params) {
             syn.set(p.first, p.second);
         }

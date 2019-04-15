@@ -7,8 +7,7 @@
 #include "sonata_excpetions.hpp"
 
 extern std::unordered_map<std::string, double> read_dynamics_params_single(std::string fname);
-extern std::unordered_map<std::string, std::unordered_map<std::string, double>>
-    read_dynamics_params_multiple(std::string fname);
+extern std::unordered_map<std::string, arb::mechanism_desc> read_dynamics_params_point(std::string fname);
 
 class csv_file {
     std::string fileName;
@@ -40,7 +39,6 @@ public:
 };
 
 ////////////////////////////////////////////////////////
-
 class csv_record {
 public:
     csv_record(std::vector<csv_file> files) {
@@ -50,41 +48,43 @@ public:
 
             for(auto it = csv_data.begin()+1; it < csv_data.end(); it++) {
                 std::unordered_map<std::string, std::string> type_fields(csv_data.front().size() - 1);
-                std::unordered_map<std::string, std::unordered_map<std::string, double>> type_params;
-                arb::morphology type_morph;
                 unsigned type_id, loc = 0;
 
                 for (auto field: *it) {
-                    if (col_names[loc] == "morphology") {
-                        std::ifstream f(field);
-                        if (!f) throw sonata_exception("Unable to open SWC file");
-                        type_morph = arb::swc_as_morphology(arb::parse_swc_file(f));
-                    }
-                    if (col_names[loc] == "dynamics_params") {
-                        type_params = read_dynamics_params_multiple(field);
-                    }
                     if (col_names[loc].find("type_id") != std::string::npos) {
                         type_id = std::atoi(field.c_str());
+                        is_edge_ = col_names[loc].find("edge") != std::string::npos ?true: false;
                     }
                     else {
                         type_fields[col_names[loc]] = field;
                     }
                     loc++;
                 }
-                data_[type_id] = type_fields;
-                dynamics_params_[type_id] = type_params;
-                morphologies_[type_id] = type_morph;
+                fields_[type_id] = type_fields;
+            }
+        }
+
+        for (auto type: fields_) {
+            if (type.second.find("morphology") != type.second.end()) {
+                std::ifstream f(type.second["morphology"]);
+                if (!f) throw sonata_exception("Unable to open SWC file");
+                morphologies_[type.first] = arb::swc_as_morphology(arb::parse_swc_file(f));
+            }
+            if (type.second.find("dynamics_params") != type.second.end()) {
+                if (is_edge_) {
+                    dynamics_params_[type.first] = read_dynamics_params_point(type.second["dynamics_params"]);
+                }
             }
         }
     }
 
 
     std::unordered_map<unsigned, std::unordered_map<std::string, std::string>> data() {
-        return data_;
+        return fields_;
     }
 
-    std::unordered_map<std::string, std::unordered_map<std::string, double>>
-    dyn_params(unsigned type) {
+    std::unordered_map<std::string, arb::mechanism_desc>
+    mech_map(unsigned type) {
         if (dynamics_params_.find(type) != dynamics_params_.end()) {
             return dynamics_params_[type];
         }
@@ -99,22 +99,21 @@ public:
     }
 
     std::unordered_map<std::string, std::string> fields(unsigned type) {
-        if (data_.find(type) != data_.end()) {
-            return data_[type];
+        if (fields_.find(type) != fields_.end()) {
+            return fields_[type];
         }
         throw sonata_exception("Requested CSV column not found");
     }
 
 private:
     // Map from type_id to map of fields and values
-    std::unordered_map<unsigned, std::unordered_map<std::string, std::string>> data_;
+    std::unordered_map<unsigned, std::unordered_map<std::string, std::string>> fields_;
 
     // Map from type_id to map from mechanisms to their parameters
-    std::unordered_map<unsigned, // type_id
-     std::unordered_map<std::string, // mechanism
-     std::unordered_map<std::string, // parameter
-     double>>> dynamics_params_;
+    std::unordered_map<unsigned, std::unordered_map<std::string, arb::mechanism_desc>> dynamics_params_;
 
     // Map from type_id to map of fields and values
     std::unordered_map<unsigned, arb::morphology> morphologies_;
+
+    bool is_edge_;
 };
