@@ -35,6 +35,11 @@ struct sonata_exception: std::runtime_error {
             std::runtime_error(what_arg) {}
 };
 
+struct sonata_file_exception: sonata_exception {
+    sonata_file_exception(const std::string& message, const std::string& name) :
+            sonata_exception(pprintf(message.c_str(), name)) {}
+};
+
 struct sonata_dataset_exception: sonata_exception {
     sonata_dataset_exception(const std::string& name) :
         sonata_exception(pprintf("Dataset \"{}\" can not be opened/read", name)) {}

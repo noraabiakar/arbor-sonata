@@ -6,8 +6,9 @@
 
 #include "sonata_excpetions.hpp"
 
-extern std::unordered_map<std::string, double> read_dynamics_params_single(std::string fname);
-extern std::unordered_map<std::string, arb::mechanism_desc> read_dynamics_params_point(std::string fname);
+arb::mechanism_desc read_dynamics_params_point(std::string fname);
+std::unordered_map<std::string, std::vector<arb::mechanism_desc>>
+    read_dynamics_params_density(std::string fname);
 
 class csv_file {
     std::string fileName;
@@ -72,7 +73,10 @@ public:
             }
             if (type.second.find("dynamics_params") != type.second.end()) {
                 if (is_edge_) {
-                    dynamics_params_[type.first] = read_dynamics_params_point(type.second["dynamics_params"]);
+                    point_params_.insert({type.first, std::move(read_dynamics_params_point(type.second["dynamics_params"]))});
+                }
+                else {
+                    density_params_.insert({type.first, std::move(read_dynamics_params_density(type.second["dynamics_params"]))});
                 }
             }
         }
@@ -83,10 +87,9 @@ public:
         return fields_;
     }
 
-    std::unordered_map<std::string, arb::mechanism_desc>
-    mech_map(unsigned type) {
-        if (dynamics_params_.find(type) != dynamics_params_.end()) {
-            return dynamics_params_[type];
+    arb::mechanism_desc mech_desc(unsigned type) {
+        if (point_params_.find(type) != point_params_.end()) {
+            return point_params_.at(type);
         }
         throw sonata_exception("Requested CSV dynamics_params not available");
     }
@@ -109,8 +112,11 @@ private:
     // Map from type_id to map of fields and values
     std::unordered_map<unsigned, std::unordered_map<std::string, std::string>> fields_;
 
-    // Map from type_id to map from mechanisms to their parameters
-    std::unordered_map<unsigned, std::unordered_map<std::string, arb::mechanism_desc>> dynamics_params_;
+    // Map from type_id to point_mechanisms_desc
+    std::unordered_map<unsigned, arb::mechanism_desc> point_params_;
+
+    // Map from type_id to mechanisms_desc
+    std::unordered_map<unsigned, std::unordered_map<std::string, std::vector<arb::mechanism_desc>>> density_params_;
 
     // Map from type_id to map of fields and values
     std::unordered_map<unsigned, arb::morphology> morphologies_;

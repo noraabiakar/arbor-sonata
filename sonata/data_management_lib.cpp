@@ -392,12 +392,11 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
         std::unordered_map<std::string, double> syn_params;
 
         arb::mechanism_desc syn(synapse);
-        auto mech_map = edge_types_.mech_map(e_type);
-        if (mech_map.find(synapse)!= mech_map.end()) {
-            for (auto v: mech_map.at(synapse).values()) {
-                syn.set(v.first, v.second);
-            };
-        }
+        auto mech = edge_types_.mech_desc(e_type);
+
+        for (auto v: mech.values()) {
+            syn.set(v.first, v.second);
+        };
 
         for (auto p: cat[synapse].parameters) {
             if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
