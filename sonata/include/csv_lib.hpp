@@ -37,9 +37,14 @@ public:
         file.close();
         return data;
     }
+
+    std::string name() {
+        return fileName;
+    }
 };
 
 ////////////////////////////////////////////////////////
+
 class csv_record {
 public:
     csv_record(std::vector<csv_file> files) {
@@ -66,20 +71,36 @@ public:
         }
 
         for (auto type: fields_) {
-            if (type.second.find("morphology") != type.second.end()) {
-                std::ifstream f(type.second["morphology"]);
-                if (!f) throw sonata_exception("Unable to open SWC file");
-                morphologies_[type.first] = arb::swc_as_morphology(arb::parse_swc_file(f));
-            }
-            if (type.second.find("dynamics_params") != type.second.end()) {
-                if (is_edge_) {
-                    point_params_.insert({type.first, std::move(read_dynamics_params_point(type.second["dynamics_params"]))});
+            if (!is_edge_) {
+                if (type.second.find("morphology") != type.second.end()) {
+                    std::ifstream f(type.second["morphology"]);
+                    if (!f) throw sonata_exception("Unable to open SWC file");
+                    morphologies_[type.first] = arb::swc_as_morphology(arb::parse_swc_file(f));
+                } else {
+                    throw sonata_exception("Morphology not found in node csv description");
                 }
-                else {
-                    density_params_.insert({type.first, std::move(read_dynamics_params_density(type.second["dynamics_params"]))});
+
+                if (type.second.find("model_template") != type.second.end()) {
+                    density_params_.insert(
+                            {type.first, std::move(read_dynamics_params_density(type.second["model_template"]))});
+                } else {
+                    throw sonata_exception("Model_template not found in node csv description");
+                }
+
+                if (type.second.find("dynamics_params") != type.second.end()) {
+                    auto dyn_params = std::move(read_dynamics_params_density(type.second["dynamics_params"]));
+                    override_density_params(type.first, dyn_params);
+                }
+            } else {
+                if (type.second.find("dynamics_params") != type.second.end()) {
+                    point_params_.insert(
+                            {type.first, std::move(read_dynamics_params_point(type.second["dynamics_params"]))});
                 }
             }
         }
+        std::cout << (files.front()).name() << std::endl;
+        print_point();
+        print_density();
     }
 
 
@@ -108,7 +129,58 @@ public:
         throw sonata_exception("Requested CSV column not found");
     }
 
+    void print_point() {
+        for (auto p: point_params_) {
+            std::cout << p.first << std::endl;
+            std::cout << "\t" << p.second.name() << std::endl;
+            for (auto i: p.second.values()) {
+                std::cout << "\t\t" << i.first <<  " = " << i.second << std::endl;
+            }
+        }
+    };
+
+    void print_density() {
+        for (auto p: density_params_) {
+            std::cout << p.first << std::endl;
+            for (auto i: p.second) {
+                std::cout << "\t" << i.first << std::endl;
+                for (auto j: i.second) {
+                    std::cout << "\t\t" << j.name() << std::endl;
+                    for (auto k : j.values()) {
+                        std::cout << "\t\t\t" << k.first << " = " << k.second << std::endl;
+                    }
+                }
+            }
+        }
+    };
+
 private:
+
+    void override_density_params(unsigned type_id, std::unordered_map<std::string, std::vector<arb::mechanism_desc>>& override) {
+
+        auto& base = density_params_[type_id];
+
+        // For every segment in overrides, look for matching segment in base
+        for (auto seg_overrides: override) {
+            if (base.find(seg_overrides.first) != base.end()) {
+
+                // If found, for every mechanism on the segment, look for matching mechanism on the base segment
+                for (auto& mech_base: base[seg_overrides.first]) {
+                    for (auto& mech_override: seg_overrides.second) {
+                        if (mech_base.name() == mech_override.name()) {
+
+                            //If found, for every parameter value of the overiding mechanism, set the value in the base mechanism
+                            for (auto& v: mech_override.values()) {
+                                mech_base.set(v.first, v.second);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     // Map from type_id to map of fields and values
     std::unordered_map<unsigned, std::unordered_map<std::string, std::string>> fields_;
 

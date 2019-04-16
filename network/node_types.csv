@@ -1,3 +1,3 @@
 node_type_id,pop_name,model_type,model_template,morphology,dynamics_params
-100,pop_e,biophysical,,/home/abiakarn/git/try/network/morphologies/soma_branch.swc,/home/abiakarn/git/try/network/dyn_params/pas.json
-101,pop_i,biophysical,,/home/abiakarn/git/try/network/morphologies/soma_branch.swc,/home/abiakarn/git/try/network/dyn_params/pas_hh.json
+100,pop_e,biophysical,/home/abiakarn/git/try/network/dyn_params/set_pas.json,/home/abiakarn/git/try/network/morphologies/soma_branch.swc,/home/abiakarn/git/try/network/dyn_params/pas.json
+101,pop_i,biophysical,/home/abiakarn/git/try/network/dyn_params/set_pas.json,/home/abiakarn/git/try/network/morphologies/soma_branch.swc,/home/abiakarn/git/try/network/dyn_params/pas_hh.json
