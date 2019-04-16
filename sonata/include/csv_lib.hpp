@@ -5,10 +5,11 @@
 #include <fstream>
 
 #include "sonata_excpetions.hpp"
+#include "density_mech_helper.hpp"
 
 arb::mechanism_desc read_dynamics_params_point(std::string fname);
-std::unordered_map<std::string, std::vector<arb::mechanism_desc>>
-    read_dynamics_params_density(std::string fname);
+std::unordered_map<std::string, std::vector<arb::mechanism_desc>> read_dynamics_params_density(std::string fname);
+std::unordered_map<std::string, mech_groups> read_dynamics_params_dense(std::string fname);
 
 class csv_file {
     std::string fileName;
@@ -81,6 +82,7 @@ public:
                 }
 
                 if (type.second.find("model_template") != type.second.end()) {
+                    read_dynamics_params_dense(type.second["model_template"]);
                     density_params_.insert(
                             {type.first, std::move(read_dynamics_params_density(type.second["model_template"]))});
                 } else {
@@ -196,6 +198,8 @@ private:
 
     // Map from type_id to mechanisms_desc
     std::unordered_map<unsigned, std::unordered_map<std::string, std::vector<arb::mechanism_desc>>> density_params_;
+
+    std::unordered_map<unsigned, std::unordered_map<std::string, mech_groups>> density_params;
 
     // Map from type_id to map of fields and values
     std::unordered_map<unsigned, arb::morphology> morphologies_;

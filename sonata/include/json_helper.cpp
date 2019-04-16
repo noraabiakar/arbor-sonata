@@ -6,20 +6,7 @@
 #include <common/json_params.hpp>
 
 #include "sonata_excpetions.hpp"
-
-std::unordered_map<std::string, double> read_dynamics_params_single(std::string fname) {
-    using sup::param_from_json;
-
-    std::unordered_map<std::string, double> params;
-    std::ifstream f(fname);
-
-    if (!f.good()) {
-        throw std::runtime_error("Unable to open input parameter file: "+fname);
-    }
-    nlohmann::json json;
-    json << f;
-    return json.get<std::unordered_map<std::string, double>>();
-}
+#include "density_mech_helper.hpp"
 
 arb::mechanism_desc read_dynamics_params_point(std::string fname) {
     using sup::param_from_json;
@@ -79,10 +66,77 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> read_dynamics_
                     syn.set(it.key(), it.value());
                 }
             }
+            std::cout << sec_name << std::endl;
             section_map[sec_name].push_back(syn);
         }
     }
 
     return section_map;
 }
+
+std::unordered_map<std::string, mech_groups> read_dynamics_params_dense(std::string fname) {
+    using sup::param_from_json;
+    std::ifstream f(fname);
+
+    if (!f.good()) {
+        throw std::runtime_error("Unable to open input parameter file: "+fname);
+    }
+    nlohmann::json json;
+    json << f;
+
+    auto mech_definitions = json.get<std::unordered_map<std::string, nlohmann::json>>();
+
+    std::unordered_map<std::string, mech_groups> mech_map;
+
+    for (auto mech_def: mech_definitions) {
+        std::string mech_id = mech_def.first; //key
+        std::unordered_map<std::string, double> variables;
+        std::vector<mech_params> mech_details;
+
+        auto mech_features = mech_def.second;
+        for (auto params: mech_features) { //iterate through json
+
+            for (auto it = params.begin(); it != params.end(); it++) {
+                if(!it->is_structured()) {
+                    variables[it.key()] = it.value();
+                } else {
+                    // Mechanism instance
+                    std::string section_name;
+                    std::string mech_name;
+                    std::unordered_map<std::string, double> mech_params;
+                    std::unordered_map<std::string, std::string> mech_aliases;
+
+                    for (auto mech_it = it->begin(); mech_it != it->end(); mech_it++) {
+                        if (mech_it.key() == "section") {
+                            section_name = (mech_it.value()).get<std::string>();
+                        } else if (mech_it.key() == "mech") {
+                            mech_name = (mech_it.value()).get<std::string>();
+                        } else if ((*mech_it).type() == nlohmann::json::value_t::string) {
+                            mech_aliases[mech_it.key()] = (mech_it.value()).get<std::string>();
+                        } else if ((*mech_it).type() == nlohmann::json::value_t::number_float ||
+                                   (*mech_it).type() == nlohmann::json::value_t::number_integer) {
+                            mech_params[mech_it.key()] = (mech_it.value()).get<double>();
+                        }
+                    }
+
+                    auto base_mechanism = arb::mechanism_desc(mech_name);
+                    for (auto p: mech_params) {
+                        base_mechanism.set(p.first, p.second);
+                    }
+
+                    mech_details.emplace_back(section_name, mech_aliases, base_mechanism);
+                }
+            }
+        }
+        mech_map.insert({mech_id, mech_groups(variables, mech_details)});
+    }
+    std::cout << "*************\n\n";
+    for (auto m: mech_map) {
+        std::cout <<m.first << std::endl << std::endl;
+        m.second.print();
+        std::cout << "*************\n\n";
+    }
+    return mech_map;
+}
+
 
