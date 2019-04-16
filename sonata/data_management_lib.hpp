@@ -52,11 +52,15 @@ public:
         return edges_.num_elements();
     }
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
+
     void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
+
+    arb::morphology get_cell_morphology(cell_gid_type gid);
+    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> get_density_mechs(cell_gid_type);
     void get_sources_and_targets(cell_gid_type gid,
                                  std::vector<std::pair<segment_location, double>>& src,
                                  std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt);
-    arb::morphology get_cell_morphology(cell_gid_type gid);
+
     unsigned num_sources(cell_gid_type gid);
     unsigned num_targets(cell_gid_type gid);
 

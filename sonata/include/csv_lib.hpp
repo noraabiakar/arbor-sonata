@@ -108,9 +108,16 @@ public:
         return fields_;
     }
 
-    arb::mechanism_desc mech_desc(unsigned type) {
+    arb::mechanism_desc point_mech_desc(unsigned type) {
         if (point_params_.find(type) != point_params_.end()) {
             return point_params_.at(type);
+        }
+        throw sonata_exception("Requested CSV dynamics_params not available");
+    }
+
+    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> density_mech_desc(unsigned type) {
+        if (density_params_.find(type) != density_params_.end()) {
+            return density_params_.at(type);
         }
         throw sonata_exception("Requested CSV dynamics_params not available");
     }

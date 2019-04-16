@@ -1,23 +1,37 @@
 {
-  "pas": [
+  "pas_0" : [
+    {
+      "g_pas": 0.002, 
+      "e_pas": -66
+    },
+    [
       {
-         "section": "soma",
-         "e": -70,
-         "g": 0.002
+        "mech": "pas",
+        "section":"soma", 
+        "e": -70, 
+        "g": "g_pas"
       },
       {
-         "section": "dend",
-         "e": -66,
-         "g": 0.003
+        "mech": "pas",
+        "section":"dend", 
+        "e": "e_pas", 
+        "g": 0.002
       }
-   ],
-
-  "hh": [
+    ]
+  ],
+  
+  "hh_0" : [
+    {
+      "el_hh": 0.002, 
+      "gl_hh": -70
+    }, 
+    [
       {
-         "section": "soma",
-         "el": -70,
-         "gl": 0.002
+        "mech" : "hh", 
+        "section": "soma", 
+        "el": "el_hh", 
+        "gl": "gl_hh"
       }
-   ]
+    ]
+  ]
 }
-

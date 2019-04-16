@@ -249,6 +249,39 @@ arb::morphology database::get_cell_morphology(cell_gid_type gid) {
     auto type_id = nodes_[loc_node.pop_id].int_at("node_type_id", loc_node.el_id);
     return node_types_.morph(type_id);
 }
+std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_density_mechs(cell_gid_type) {
+   /* auto loc_node = localize_cell(gid);
+    auto density_mechs = node_types_.density_mech_desc(loc_node.pop_id);
+
+    std::unordered_map<std::string, double> syn_params;
+
+    arb::mechanism_desc syn(synapse);
+    auto mech = edge_types_.mech_desc(e_type);
+
+    if (mech.name() == synapse) {
+        for (auto v: mech.values()) {
+            syn.set(v.first, v.second);
+        };
+    }
+
+    for (auto p: cat[synapse].parameters) {
+        if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
+            auto lgi = edges_[edge_pop_id].find_group(std::to_string(loc_grp_id));
+            auto group = edges_[edge_pop_id][lgi];
+            auto loc_grp_idx = edges_grp_idx[i];
+            if (group.find_dataset(p.first) != -1) {
+                syn_params[p.first] = group.double_at("afferent_section_id", loc_grp_idx);
+            }
+        }
+    }
+
+    for (auto p: syn_params) {
+        syn.set(p.first, p.second);
+    }*/
+
+}
+
+
 
 unsigned database::num_sources(cell_gid_type gid) {
     return source_maps_[gid].size();
@@ -392,11 +425,13 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
         std::unordered_map<std::string, double> syn_params;
 
         arb::mechanism_desc syn(synapse);
-        auto mech = edge_types_.mech_desc(e_type);
+        auto mech = edge_types_.point_mech_desc(e_type);
 
-        for (auto v: mech.values()) {
-            syn.set(v.first, v.second);
-        };
+        if (mech.name() == synapse) {
+            for (auto v: mech.values()) {
+                syn.set(v.first, v.second);
+            };
+        }
 
         for (auto p: cat[synapse].parameters) {
             if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
