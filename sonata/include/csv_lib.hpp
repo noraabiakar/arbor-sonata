@@ -9,7 +9,8 @@
 
 arb::mechanism_desc read_dynamics_params_point(std::string fname);
 std::unordered_map<std::string, std::vector<arb::mechanism_desc>> read_dynamics_params_density(std::string fname);
-std::unordered_map<std::string, mech_groups> read_dynamics_params_dense(std::string fname);
+std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(std::string fname);
+std::unordered_map<std::string, variable_map> read_dynamics_params_density_override(std::string fname);
 
 class csv_file {
     std::string fileName;
@@ -82,15 +83,15 @@ public:
                 }
 
                 if (type.second.find("model_template") != type.second.end()) {
-                    read_dynamics_params_dense(type.second["model_template"]);
+                    std::cout << type.first << std::endl << std::endl;
                     density_params_.insert(
-                            {type.first, std::move(read_dynamics_params_density(type.second["model_template"]))});
+                            {type.first, std::move(read_dynamics_params_density_base(type.second["model_template"]))});
                 } else {
                     throw sonata_exception("Model_template not found in node csv description");
                 }
 
                 if (type.second.find("dynamics_params") != type.second.end()) {
-                    auto dyn_params = std::move(read_dynamics_params_density(type.second["dynamics_params"]));
+                    auto dyn_params = std::move(read_dynamics_params_density_override(type.second["dynamics_params"]));
                     override_density_params(type.first, dyn_params);
                 }
             } else {
@@ -101,7 +102,7 @@ public:
             }
         }
         std::cout << (files.front()).name() << std::endl;
-        print_point();
+        //print_point();
         print_density();
     }
 
@@ -110,18 +111,11 @@ public:
         return fields_;
     }
 
-    arb::mechanism_desc point_mech_desc(unsigned type) {
-        if (point_params_.find(type) != point_params_.end()) {
-            return point_params_.at(type);
+    std::unordered_map<std::string, std::string> fields(unsigned type) {
+        if (fields_.find(type) != fields_.end()) {
+            return fields_[type];
         }
-        throw sonata_exception("Requested CSV dynamics_params not available");
-    }
-
-    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> density_mech_desc(unsigned type) {
-        if (density_params_.find(type) != density_params_.end()) {
-            return density_params_.at(type);
-        }
-        throw sonata_exception("Requested CSV dynamics_params not available");
+        throw sonata_exception("Requested CSV column not found");
     }
 
     arb::morphology morph(unsigned type) {
@@ -131,11 +125,42 @@ public:
         throw sonata_exception("Requested morphology not found");
     }
 
-    std::unordered_map<std::string, std::string> fields(unsigned type) {
-        if (fields_.find(type) != fields_.end()) {
-            return fields_[type];
+    arb::mechanism_desc point_mech_desc(unsigned type) {
+        if (point_params_.find(type) != point_params_.end()) {
+            return point_params_.at(type);
         }
-        throw sonata_exception("Requested CSV column not found");
+        throw sonata_exception("Requested CSV dynamics_params not available");
+    }
+
+    std::unordered_map<std::string, variable_map> density_vars(unsigned type) {
+        std::unordered_map<std::string, variable_map> ret;
+        if (density_params_.find(type) != density_params_.end()) {
+            for (auto& mech: density_params_.at(type)) {
+                ret[mech.first] = mech.second.variables;
+            }
+        }
+        return ret;
+    }
+
+    std::unordered_map<std::string, std::vector<arb::mechanism_desc>>
+    density_mech_desc(unsigned type, std::unordered_map<std::string, variable_map> overrides) {
+        std::unordered_map<std::string, std::vector<arb::mechanism_desc>> ret;
+
+        auto mech_type_id =  density_params_[type];
+
+        // For every mech_id
+        for (auto mech_id: mech_type_id) {
+            // For every instance of the mech_id
+            for (auto density_mech: mech_id.second.mech_details) {
+                auto mech_desc = density_mech.mech;
+                // Get the aliases and set values from overrides
+                for (auto alias: density_mech.param_alias) {
+                    mech_desc.set(alias.first, overrides[mech_id.first][alias.second]);
+                }
+                ret[density_mech.section].push_back(std::move(mech_desc));
+            }
+        }
+        return ret;
     }
 
     void print_point() {
@@ -153,42 +178,29 @@ public:
             std::cout << p.first << std::endl;
             for (auto i: p.second) {
                 std::cout << "\t" << i.first << std::endl;
-                for (auto j: i.second) {
-                    std::cout << "\t\t" << j.name() << std::endl;
-                    for (auto k : j.values()) {
-                        std::cout << "\t\t\t" << k.first << " = " << k.second << std::endl;
-                    }
-                }
+                (i.second).print();
             }
         }
     };
 
-private:
-
-    void override_density_params(unsigned type_id, std::unordered_map<std::string, std::vector<arb::mechanism_desc>>& override) {
-
+    void override_density_params(unsigned type_id, std::unordered_map<std::string, variable_map>& override) {
         auto& base = density_params_[type_id];
 
         // For every segment in overrides, look for matching segment in base
         for (auto seg_overrides: override) {
             if (base.find(seg_overrides.first) != base.end()) {
-
-                // If found, for every mechanism on the segment, look for matching mechanism on the base segment
-                for (auto& mech_base: base[seg_overrides.first]) {
-                    for (auto& mech_override: seg_overrides.second) {
-                        if (mech_base.name() == mech_override.name()) {
-
-                            //If found, for every parameter value of the overiding mechanism, set the value in the base mechanism
-                            for (auto& v: mech_override.values()) {
-                                mech_base.set(v.first, v.second);
-                            }
-                        }
-                        break;
+                auto& base_id = base.at(seg_overrides.first);
+                auto& base_vars = base_id.variables;
+                for (auto var: seg_overrides.second) {
+                    if (base_vars.find(var.first) != base_vars.end()) {
+                        base_vars[var.first] = var.second;
                     }
                 }
             }
         }
     }
+
+private:
 
     // Map from type_id to map of fields and values
     std::unordered_map<unsigned, std::unordered_map<std::string, std::string>> fields_;
@@ -197,9 +209,7 @@ private:
     std::unordered_map<unsigned, arb::mechanism_desc> point_params_;
 
     // Map from type_id to mechanisms_desc
-    std::unordered_map<unsigned, std::unordered_map<std::string, std::vector<arb::mechanism_desc>>> density_params_;
-
-    std::unordered_map<unsigned, std::unordered_map<std::string, mech_groups>> density_params;
+    std::unordered_map<unsigned, std::unordered_map<std::string, mech_groups>> density_params_;
 
     // Map from type_id to map of fields and values
     std::unordered_map<unsigned, arb::morphology> morphologies_;

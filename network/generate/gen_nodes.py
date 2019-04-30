@@ -21,6 +21,20 @@ node_type_id = pop_e.create_dataset("node_type_id", (400,), dtype='i')
 for i in range(0,400):
     node_type_id[i] = 100
 
+g0 = pop_e.create_group("0")
+
+g_pas = g0.create_dataset("pas_0.g_pas", (400,), dtype="f")
+e_pas = g0.create_dataset("pas_0.e_pas", (400,), dtype="f")
+gl_hh = g0.create_dataset("hh_0.gl_hh", (400,), dtype="f")
+el_hh = g0.create_dataset("hh_0.el_hh", (400,), dtype="f")
+
+for i in range(0,400):
+    g_pas[i] = .001
+    e_pas[i] = -65
+    gl_hh[i] = 0.0003
+    el_hh[i] = -54.3
+
+############################################################################
 
 node_group_id = pop_i.create_dataset("node_group_id", (100,), dtype='i')
 for i in range(0,100):
@@ -33,6 +47,19 @@ for i in range(0,100):
 node_type_id = pop_i.create_dataset("node_type_id", (100,), dtype='i')
 for i in range(0,100):
     node_type_id[i] = 101
+
+g0 = pop_i.create_group("0")
+
+g_pas = g0.create_dataset("pas_0.g_pas", (400,), dtype="f")
+e_pas = g0.create_dataset("pas_0.e_pas", (400,), dtype="f")
+gl_hh = g0.create_dataset("hh_0.gl_hh", (400,), dtype="f")
+el_hh = g0.create_dataset("hh_0.el_hh", (400,), dtype="f")
+
+for i in range(0,100):
+    g_pas[i] = .001
+    e_pas[i] = -65
+    gl_hh[i] = 0.0003
+    el_hh[i] = -54.3
 
 f0.close()
 f1.close()

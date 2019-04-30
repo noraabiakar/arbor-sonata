@@ -8,22 +8,22 @@
       {
         "mech": "pas",
         "section":"soma", 
-        "e": -70, 
-        "g": "g_pas"
+        "e": -65, 
+        "g": 0
       },
       {
         "mech": "pas",
         "section":"dend", 
         "e": "e_pas", 
-        "g": 0.002
+        "g": 0.001
       }
     ]
   ],
   
   "hh_0" : [
     {
-      "el_hh": 0.002, 
-      "gl_hh": -70
+      "gl_hh": 0.002, 
+      "el_hh": -70
     }, 
     [
       {

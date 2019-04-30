@@ -66,7 +66,7 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> read_dynamics_
                     syn.set(it.key(), it.value());
                 }
             }
-            std::cout << sec_name << std::endl;
+            //std::cout << sec_name << std::endl;
             section_map[sec_name].push_back(syn);
         }
     }
@@ -74,7 +74,7 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> read_dynamics_
     return section_map;
 }
 
-std::unordered_map<std::string, mech_groups> read_dynamics_params_dense(std::string fname) {
+std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(std::string fname) {
     using sup::param_from_json;
     std::ifstream f(fname);
 
@@ -130,13 +130,47 @@ std::unordered_map<std::string, mech_groups> read_dynamics_params_dense(std::str
         }
         mech_map.insert({mech_id, mech_groups(variables, mech_details)});
     }
-    std::cout << "*************\n\n";
+    /*std::cout << "*************\n\n";
+    std::cout << fname << std::endl<< std::endl;
     for (auto m: mech_map) {
-        std::cout <<m.first << std::endl << std::endl;
+        std::cout << m.first << std::endl << std::endl;
         m.second.print();
         std::cout << "*************\n\n";
     }
+    std::cout << "OUT" <<std::endl;*/
     return mech_map;
 }
 
+std::unordered_map<std::string, variable_map> read_dynamics_params_density_override(std::string fname) {
+    using sup::param_from_json;
+    std::ifstream f(fname);
+
+    if (!f.good()) {
+        throw std::runtime_error("Unable to open input parameter file: "+fname);
+    }
+    nlohmann::json json;
+    json << f;
+
+    auto mech_overrides = json.get<std::unordered_map<std::string, nlohmann::json>>();
+
+    std::unordered_map<std::string, variable_map> var_overrides;
+
+    for (auto mech_def: mech_overrides) {
+        std::string mech_id = mech_def.first; //key
+        variable_map mech_variables = (mech_def.second).get<variable_map>();
+
+        var_overrides.insert({mech_id, mech_variables});
+    }
+
+    /*std::cout << "*************\n\n";
+    std::cout << fname << std::endl<< std::endl;
+    for (auto m: var_overrides) {
+        std::cout << m.first << std::endl << std::endl;
+        for (auto v: m.second) {
+            std::cout << "\t" << v.first << " = " << v.second << std::endl;
+        }
+        std::cout << "*************\n\n";
+    }*/
+    return var_overrides;
+}
 

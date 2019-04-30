@@ -2,6 +2,8 @@
 #include <unordered_map>
 #include <vector>
 
+using variable_map = std::unordered_map<std::string, double>;
+
 struct mech_params {
     std::string section;
     std::unordered_map<std::string, std::string> param_alias;
@@ -23,7 +25,7 @@ struct mech_params {
 };
 
 struct mech_groups {
-    std::unordered_map<std::string, double> variables;
+    variable_map variables;
     std::vector<mech_params> mech_details;
 
     mech_groups(std::unordered_map<std::string, double> vars, std::vector<mech_params> mech_det) :

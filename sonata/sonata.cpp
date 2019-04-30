@@ -35,7 +35,8 @@ using arb::cell_probe_address;
 
 // Generate a cell.
 arb::cable_cell dummy_cell(
-        arb::morphology morph,
+        arb::morphology,
+        std::unordered_map<std::string, std::vector<arb::mechanism_desc>>,
         std::vector<std::pair<arb::segment_location, double>>,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>>);
 
@@ -61,9 +62,22 @@ public:
 
         std::lock_guard<std::mutex> l(mtx_);
         auto morph = database_.get_cell_morphology(gid);
+        auto mechs = database_.get_density_mechs(gid);
+
         database_.get_sources_and_targets(gid, src_types, tgt_types);
 
-        return dummy_cell(morph, src_types, tgt_types);
+        /*std::cout << gid << std::endl;
+        for (auto m: mechs) {
+            std::cout << m.first << std::endl;
+            for (auto m1: m.second) {
+                std::cout << "\t" << m1.name() << std::endl;
+                for (auto v: m1.values()) {
+                    std::cout << "\t\t" << v.first << " -> " << v.second << std::endl;
+                }
+            }
+        }
+        std::cout << std::endl;*/
+        return dummy_cell(morph, mechs, src_types, tgt_types);
     }
 
     cell_kind get_cell_kind(cell_gid_type gid) const override { return cell_kind::cable; }
@@ -255,21 +269,45 @@ int main(int argc, char **argv)
 
 arb::cable_cell dummy_cell(
         arb::morphology morph,
+        std::unordered_map<std::string, std::vector<arb::mechanism_desc>> mechs,
         std::vector<std::pair<arb::segment_location, double>> detectors,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> synapses) {
 
     arb::cable_cell cell = arb::make_cable_cell(morph);
 
     for (auto& segment: cell.segments()) {
-        if (segment->is_soma()) {
-            segment->rL = 100;
-            segment->add_mechanism("hh");
+        switch (segment->kind()) {
+            case arb::section_kind::soma : {
+                segment->rL = 100;
+                for (auto mech: mechs["soma"]) {
+                    segment->add_mechanism(mech);
+                }
+                break;
+            }
+            case arb::section_kind::axon : {
+                for (auto mech: mechs["axon"]) {
+                    segment->add_mechanism(mech);
+                }
+                segment->set_compartments(200);
+                break;
+            }
+            case arb::section_kind::dendrite : {
+                for (auto mech: mechs["dend"]) {
+                    segment->add_mechanism(mech);
+                }
+                segment->set_compartments(200);
+                break;
+            }
         }
-        else {
-            segment->add_mechanism("pas");
-            segment->set_compartments(200);
+
+        for (auto m: segment->mechanisms()) {
+            std::cout << m.name() << std::endl;
+            for (auto v: m.values()) {
+                std::cout << "\t" << v.first << " = " << v.second << std::endl;
+            }
         }
     }
+    std::cout << "-----------------" << std::endl;
 
     // Add spike threshold detector at the soma.
     for (auto d: detectors) {
