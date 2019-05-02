@@ -133,7 +133,6 @@ void database::build_source_and_target_maps(const std::vector<arb::group_descrip
 
         source_maps_[glob_source_gids[i]] = std::move(sub_v);
     }
-
 }
 
 void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns) {
@@ -151,7 +150,6 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
 
         for (auto j = n2r_range.first; j< n2r_range.second; j++) {
             auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
-
             auto src_rng = source_range(edge_pop, r2e);
             auto tgt_rng = target_range(edge_pop, r2e);
             auto weights = weight_range(edge_pop, r2e);
@@ -246,8 +244,9 @@ arb::morphology database::get_cell_morphology(cell_gid_type gid) {
         }
     }
 
-    auto type_id = nodes_[loc_node.pop_id].int_at("node_type_id", loc_node.el_id);
-    return node_types_.morph(type_id);
+    auto node_pop_name = nodes_[loc_node.pop_id].name();
+    auto node_type_tag = nodes_[loc_node.pop_id].int_at("node_type_id", loc_node.el_id);
+    return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
 }
 
 std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_density_mechs(cell_gid_type gid) {
@@ -257,9 +256,10 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
 
     auto nodes_grp_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
     auto nodes_grp_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
-    auto nodes_type = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto nodes_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto nodes_pop_name = nodes_[node_pop_id].name();
 
-    auto density_vars = node_types_.density_vars(nodes_type);
+    auto density_vars = node_types_.density_vars(type_pop_id(nodes_type_tag, nodes_pop_name));
 
     for (auto id: density_vars) {
         auto gp_id = id.first;
@@ -278,7 +278,7 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
             }
         }
     }
-    return node_types_.density_mech_desc(nodes_type, std::move(density_vars));
+    return node_types_.density_mech_desc(type_pop_id(nodes_type_tag, nodes_pop_name), std::move(density_vars));
 }
 
 unsigned database::num_sources(cell_gid_type gid) {
@@ -301,7 +301,8 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
     // First read edge_group_id and edge_group_index and edge_type
     auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
         auto loc_grp_id = edges_grp_id[i];
@@ -334,8 +335,7 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
         }
 
         // name and index of edge_type_id
-        auto e_type = edges_type[i];
-        auto e_fields = edge_types_.fields(e_type);
+        auto e_fields = edge_types_.fields(type_pop_id(edges_type_tag[i], edges_pop_name));
 
         if (!found_source_branch) {
             source_branch = std::atoi(e_fields["efferent_section_id"].c_str());
@@ -358,7 +358,8 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
     // First read edge_group_id and edge_group_index and edge_type
     auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_pop_name = edges_[edge_pop_id].name();
 
     auto cat = arb::global_default_catalogue();
 
@@ -394,8 +395,7 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
         }
 
         // name and index of edge_type_id
-        auto e_type = edges_type[i];
-        auto e_fields = edge_types_.fields(e_type);
+        auto e_fields = edge_types_.fields(type_pop_id(edges_type_tag[i], edges_pop_name));
 
         if (!found_target_branch) {
             if (e_fields.find("afferent_section_id") != e_fields.end()) {
@@ -423,7 +423,7 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
         std::unordered_map<std::string, double> syn_params;
 
         arb::mechanism_desc syn(synapse);
-        auto mech = edge_types_.point_mech_desc(e_type);
+        auto mech = edge_types_.point_mech_desc(type_pop_id(edges_type_tag[i], edges_pop_name));
 
         if (mech.name() == synapse) {
             for (auto v: mech.values()) {
@@ -457,7 +457,8 @@ std::vector<double> database::weight_range(unsigned edge_pop_id, std::pair<unsig
     // First read edge_group_id and edge_group_index and edge_type
     auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
         auto loc_grp_id = edges_grp_id[i];
@@ -478,8 +479,7 @@ std::vector<double> database::weight_range(unsigned edge_pop_id, std::pair<unsig
         }
 
         // name and index of edge_type_id
-        auto e_type = edges_type[i];
-        auto e_fields = edge_types_.fields(e_type);
+        auto e_fields = edge_types_.fields(type_pop_id(edges_type_tag[i], edges_pop_name));
 
         if (!found_weight) {
             if (e_fields.find("syn_weight") != e_fields.end()) {
@@ -499,7 +499,8 @@ std::vector<double> database::delay_range(unsigned edge_pop_id, std::pair<unsign
     // First read edge_group_id and edge_group_index and edge_type
     auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
         auto loc_grp_id = edges_grp_id[i];
@@ -520,8 +521,7 @@ std::vector<double> database::delay_range(unsigned edge_pop_id, std::pair<unsign
         }
 
         // name and index of edge_type_id
-        auto e_type = edges_type[i];
-        auto e_fields = edge_types_.fields(e_type);
+        auto e_fields = edge_types_.fields(type_pop_id(edges_type_tag[i], edges_pop_name));
 
         if (!found_delay) {
 

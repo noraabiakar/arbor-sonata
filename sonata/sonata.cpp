@@ -299,15 +299,7 @@ arb::cable_cell dummy_cell(
                 break;
             }
         }
-
-        for (auto m: segment->mechanisms()) {
-            std::cout << m.name() << std::endl;
-            for (auto v: m.values()) {
-                std::cout << "\t" << v.first << " = " << v.second << std::endl;
-            }
-        }
     }
-    std::cout << "-----------------" << std::endl;
 
     // Add spike threshold detector at the soma.
     for (auto d: detectors) {
