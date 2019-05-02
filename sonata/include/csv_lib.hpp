@@ -8,7 +8,6 @@
 #include "density_mech_helper.hpp"
 
 arb::mechanism_desc read_dynamics_params_point(std::string fname);
-std::unordered_map<std::string, std::vector<arb::mechanism_desc>> read_dynamics_params_density(std::string fname);
 std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(std::string fname);
 std::unordered_map<std::string, variable_map> read_dynamics_params_density_override(std::string fname);
 
@@ -62,10 +61,6 @@ public:
         file.close();
         return data;
     }
-
-    std::string name() {
-        return fileName;
-    }
 };
 
 ////////////////////////////////////////////////////////
@@ -97,7 +92,6 @@ public:
                 }
                 fields_[type_pop_id(type_tag, pop_name)] = type_fields;
             }
-            print();
         }
 
         for (auto type: fields_) {
@@ -158,7 +152,7 @@ public:
         throw sonata_exception("Requested CSV dynamics_params not available");
     }
 
-    std::unordered_map<std::string, variable_map> density_vars(type_pop_id id) {
+    std::unordered_map<std::string, variable_map> dynamic_params(type_pop_id id) {
         std::unordered_map<std::string, variable_map> ret;
         if (density_params_.find(id) != density_params_.end()) {
             for (auto& mech: density_params_.at(id)) {
@@ -218,6 +212,8 @@ public:
         }
     };
 
+private:
+
     void override_density_params(type_pop_id id, std::unordered_map<std::string, variable_map>& override) {
         auto& base = density_params_[id];
 
@@ -234,8 +230,6 @@ public:
             }
         }
     }
-
-private:
 
     // Map from type_pop_id to map of fields and values
     std::unordered_map<type_pop_id, std::unordered_map<std::string, std::string>> fields_;

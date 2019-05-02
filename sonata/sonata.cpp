@@ -63,20 +63,8 @@ public:
         std::lock_guard<std::mutex> l(mtx_);
         auto morph = database_.get_cell_morphology(gid);
         auto mechs = database_.get_density_mechs(gid);
-
         database_.get_sources_and_targets(gid, src_types, tgt_types);
 
-        /*std::cout << gid << std::endl;
-        for (auto m: mechs) {
-            std::cout << m.first << std::endl;
-            for (auto m1: m.second) {
-                std::cout << "\t" << m1.name() << std::endl;
-                for (auto v: m1.values()) {
-                    std::cout << "\t\t" << v.first << " -> " << v.second << std::endl;
-                }
-            }
-        }
-        std::cout << std::endl;*/
         return dummy_cell(morph, mechs, src_types, tgt_types);
     }
 

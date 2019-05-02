@@ -37,43 +37,6 @@ arb::mechanism_desc read_dynamics_params_point(std::string fname) {
     return syn;
 }
 
-std::unordered_map<std::string, std::vector<arb::mechanism_desc>> read_dynamics_params_density(std::string fname) {
-    using sup::param_from_json;
-
-    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> section_map;
-    std::ifstream f(fname);
-
-    if (!f.good()) {
-        throw std::runtime_error("Unable to open input parameter file: "+fname);
-    }
-    nlohmann::json json;
-    json << f;
-
-    auto mechs = json.get<std::unordered_map<std::string, nlohmann::json>>();
-
-    for (auto mech: mechs) {
-        auto mech_name = mech.first;
-        auto mech_params = mech.second;
-
-        for (auto params: mech_params) {
-            std::string sec_name;
-            auto syn = arb::mechanism_desc(mech_name);
-
-            for (auto it = params.begin(); it != params.end(); it++) {
-                if(it.key() == "section") {
-                    sec_name = (it.value()).get<std::string>();
-                } else {
-                    syn.set(it.key(), it.value());
-                }
-            }
-            //std::cout << sec_name << std::endl;
-            section_map[sec_name].push_back(syn);
-        }
-    }
-
-    return section_map;
-}
-
 std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(std::string fname) {
     using sup::param_from_json;
     std::ifstream f(fname);
@@ -130,14 +93,6 @@ std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(s
         }
         mech_map.insert({mech_id, mech_groups(variables, mech_details)});
     }
-    /*std::cout << "*************\n\n";
-    std::cout << fname << std::endl<< std::endl;
-    for (auto m: mech_map) {
-        std::cout << m.first << std::endl << std::endl;
-        m.second.print();
-        std::cout << "*************\n\n";
-    }
-    std::cout << "OUT" <<std::endl;*/
     return mech_map;
 }
 
@@ -161,16 +116,6 @@ std::unordered_map<std::string, variable_map> read_dynamics_params_density_overr
 
         var_overrides.insert({mech_id, mech_variables});
     }
-
-    /*std::cout << "*************\n\n";
-    std::cout << fname << std::endl<< std::endl;
-    for (auto m: var_overrides) {
-        std::cout << m.first << std::endl << std::endl;
-        for (auto v: m.second) {
-            std::cout << "\t" << v.first << " = " << v.second << std::endl;
-        }
-        std::cout << "*************\n\n";
-    }*/
     return var_overrides;
 }
 

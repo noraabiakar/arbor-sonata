@@ -229,12 +229,18 @@ void database::get_sources_and_targets(cell_gid_type gid,
 
 arb::morphology database::get_cell_morphology(cell_gid_type gid) {
     auto loc_node = localize_cell(gid);
-    auto group_id = nodes_[loc_node.pop_id].int_at("node_group_id", loc_node.el_id);
-    auto group_idx = nodes_[loc_node.pop_id].int_at("node_group_index", loc_node.el_id);
+    auto node_pop_id = loc_node.pop_id;
+    auto node_id = loc_node.el_id;
 
-    if (nodes_[loc_node.pop_id].find_group(std::to_string(group_id)) != -1) {
-        auto lgi = nodes_[loc_node.pop_id].find_group(std::to_string(group_id));
-        auto group = nodes_[loc_node.pop_id][lgi];
+    auto group_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
+    auto group_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
+
+    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto node_pop_name = nodes_[node_pop_id].name();
+
+    if (nodes_[node_pop_id].find_group(std::to_string(group_id)) != -1) {
+        auto lgi = nodes_[node_pop_id].find_group(std::to_string(group_id));
+        auto group = nodes_[node_pop_id][lgi];
         if (group.find_dataset("morphology") != -1) {
             auto file = group.string_at("morphology", group_idx);
 
@@ -243,9 +249,6 @@ arb::morphology database::get_cell_morphology(cell_gid_type gid) {
             return arb::swc_as_morphology(arb::parse_swc_file(f));
         }
     }
-
-    auto node_pop_name = nodes_[loc_node.pop_id].name();
-    auto node_type_tag = nodes_[loc_node.pop_id].int_at("node_type_id", loc_node.el_id);
     return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
 }
 
@@ -256,10 +259,11 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
 
     auto nodes_grp_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
     auto nodes_grp_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
+
     auto nodes_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
     auto nodes_pop_name = nodes_[node_pop_id].name();
 
-    auto density_vars = node_types_.density_vars(type_pop_id(nodes_type_tag, nodes_pop_name));
+    auto density_vars = node_types_.dynamic_params(type_pop_id(nodes_type_tag, nodes_pop_name));
 
     for (auto id: density_vars) {
         auto gp_id = id.first;
