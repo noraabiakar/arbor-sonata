@@ -1,3 +1,5 @@
+#pragma once
+
 #include <arbor/common_types.hpp>
 #include <arbor/cable_cell.hpp>
 #include <arbor/domain_decomposition.hpp>

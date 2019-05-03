@@ -44,8 +44,8 @@ void write_trace_json(const arb::trace_data<double>& trace);
 
 class sonata_recipe: public arb::recipe {
 public:
-    sonata_recipe(hdf5_record nodes, hdf5_record edges, csv_record node_types, csv_record edge_types):
-            database_(nodes, edges, node_types, edge_types),
+    sonata_recipe(sonata_params params):
+            database_(params.network.nodes, params.network.edges, params.network.nodes_types, params.network.edges_types),
             num_cells_(database_.num_cells()) {}
 
     cell_size_type num_cells() const override {
@@ -120,7 +120,6 @@ private:
 
 int main(int argc, char **argv)
 {
-    using h5_file_handle = std::shared_ptr<h5_file>;
     try {
         bool root = true;
 
@@ -158,35 +157,7 @@ int main(int argc, char **argv)
         meters.start(context);
 
         // Create an instance of our recipe.
-        std::vector<h5_file_handle> nodes_h5, edges_h5;
-        std::vector<csv_file> nodes_csv, edges_csv;
-
-        for (auto f: params.nodes) {
-            nodes_h5.emplace_back(std::make_shared<h5_file>(f));
-        }
-
-        for (auto f: params.edges) {
-            edges_h5.emplace_back(std::make_shared<h5_file>(f));
-        }
-
-        for (auto f: params.nodes_types) {
-            nodes_csv.emplace_back(f);
-        }
-
-        for (auto f: params.edges_types) {
-            edges_csv.emplace_back(f);
-        }
-
-        hdf5_record n(nodes_h5);
-        n.verify_nodes();
-
-        hdf5_record e(edges_h5);
-        e.verify_edges();
-
-        csv_record n_t(nodes_csv);
-        csv_record e_t(edges_csv);
-
-        sonata_recipe recipe(n, e, n_t, e_t);
+        sonata_recipe recipe(params);
 
         auto decomp = arb::partition_load_balance(recipe, context);
 
