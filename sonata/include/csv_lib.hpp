@@ -61,6 +61,10 @@ public:
         file.close();
         return data;
     }
+
+    std::string name() {
+        return fileName;
+    }
 };
 
 ////////////////////////////////////////////////////////
@@ -122,8 +126,6 @@ public:
                 }
             }
         }
-        //print_point();
-        //print_density();
     }
 
 

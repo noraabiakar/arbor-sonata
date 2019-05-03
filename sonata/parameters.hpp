@@ -1,31 +1,26 @@
 #include <iostream>
 #include <fstream>
+#include <set>
 
 #include <common/json_params.hpp>
 
 struct sonata_params {
+    std::set<std::string> nodes;
+    std::set<std::string> nodes_types;
 
-    std::string nodes_0 = "../../network/nodes_0.h5";
-    std::string nodes_1 = "../../network/nodes_1.h5";
-    std::string nodes_csv = "../../network/node_types.csv";
-
-    std::string edges_0 = "../../network/edges_0.h5";
-    std::string edges_1 = "../../network/edges_1.h5";
-    std::string edges_2 = "../../network/edges_2.h5";
-    std::string edges_3 = "../../network/edges_3.h5";
-    std::string edges_csv = "../../network/edge_types.csv";
-
+    std::set<std::string> edges;
+    std::set<std::string> edges_types;
 };
 
 sonata_params read_options(int argc, char** argv) {
     using sup::param_from_json;
 
     sonata_params params;
-    if (argc<4) {
+    if (argc<2) {
         std::cout << "Using default parameters.\n";
         return params;
     }
-    if (argc>4) {
+    if (argc>2) {
         throw std::runtime_error("More than one command line option not permitted.");
     }
 
@@ -40,20 +35,30 @@ sonata_params read_options(int argc, char** argv) {
     nlohmann::json json;
     json << f;
 
-    param_from_json(params.nodes_0, "nodes-0", json);
-    param_from_json(params.nodes_1, "nodes-1", json);
-    param_from_json(params.nodes_csv, "nodes-csv", json);
-    param_from_json(params.edges_0, "edges-0", json);
-    param_from_json(params.edges_1, "edges-1", json);
-    param_from_json(params.edges_2, "edges-2", json);
-    param_from_json(params.edges_3, "edges-3", json);
-    param_from_json(params.edges_csv, "edges-csv", json);
+    /**********************************************************************************/
+    auto input_fields = json.get<std::unordered_map<std::string, nlohmann::json>>();
 
-    if (!json.empty()) {
-        for (auto it=json.begin(); it!=json.end(); ++it) {
-            std::cout << "  Warning: unused input parameter: \"" << it.key() << "\"\n";
-        }
-        std::cout << "\n";
+    auto node_edge_files = input_fields["network"].get<std::unordered_map<std::string, nlohmann::json>>();
+    auto node_files = node_edge_files["nodes"].get<std::vector<nlohmann::json>>();
+    auto edge_files = node_edge_files["edges"].get<std::vector<nlohmann::json>>();
+
+    for (auto n: node_files) {
+        std::string node_h5, node_csv;
+        param_from_json(node_h5, "nodes_file", n);
+        param_from_json(node_csv, "node_types_file", n);
+
+        params.nodes.insert(node_h5);
+        params.nodes_types.insert(node_csv);
     }
+
+    for (auto n: edge_files) {
+        std::string edge_h5, edge_csv;
+        param_from_json(edge_h5, "edges_file", n);
+        param_from_json(edge_csv, "edge_types_file", n);
+
+        params.edges.insert(edge_h5);
+        params.edges_types.insert(edge_csv);
+    }
+
     return params;
 }

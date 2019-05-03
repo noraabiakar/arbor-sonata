@@ -1,0 +1,3 @@
+node_type_id,pop_name,model_type,model_template,morphology,dynamics_params
+100,pop_e,biophysical,/home/abiakarn/git/arbor-sonata/example/components/density_params/set_pas.json,/home/abiakarn/git/arbor-sonata/example/components/morphologies/soma_branch.swc,/home/abiakarn/git/arbor-sonata/example/components/density_params/pas.json
+101,pop_i,biophysical,/home/abiakarn/git/arbor-sonata/example/components/density_params/set_pas.json,/home/abiakarn/git/arbor-sonata/example/components/morphologies/soma_branch.swc,/home/abiakarn/git/arbor-sonata/example/components/density_params/pas_hh.json

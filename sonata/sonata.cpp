@@ -120,6 +120,7 @@ private:
 
 int main(int argc, char **argv)
 {
+    using h5_file_handle = std::shared_ptr<h5_file>;
     try {
         bool root = true;
 
@@ -157,27 +158,33 @@ int main(int argc, char **argv)
         meters.start(context);
 
         // Create an instance of our recipe.
-        using h5_file_handle = std::shared_ptr<h5_file>;
+        std::vector<h5_file_handle> nodes_h5, edges_h5;
+        std::vector<csv_file> nodes_csv, edges_csv;
 
-        h5_file_handle nodes_0 = std::make_shared<h5_file>(params.nodes_0);
-        h5_file_handle nodes_1 = std::make_shared<h5_file>(params.nodes_1);
+        for (auto f: params.nodes) {
+            nodes_h5.emplace_back(std::make_shared<h5_file>(f));
+        }
 
-        h5_file_handle edges_0 = std::make_shared<h5_file>(params.edges_0);
-        h5_file_handle edges_1 = std::make_shared<h5_file>(params.edges_1);
-        h5_file_handle edges_2 = std::make_shared<h5_file>(params.edges_2);
-        h5_file_handle edges_3 = std::make_shared<h5_file>(params.edges_3);
+        for (auto f: params.edges) {
+            edges_h5.emplace_back(std::make_shared<h5_file>(f));
+        }
 
-        csv_file node_def(params.nodes_csv);
-        csv_file edge_def(params.edges_csv);
+        for (auto f: params.nodes_types) {
+            nodes_csv.emplace_back(f);
+        }
 
-        hdf5_record n({nodes_0, nodes_1});
+        for (auto f: params.edges_types) {
+            edges_csv.emplace_back(f);
+        }
+
+        hdf5_record n(nodes_h5);
         n.verify_nodes();
 
-        hdf5_record e({edges_0, edges_1, edges_2, edges_3});
+        hdf5_record e(edges_h5);
         e.verify_edges();
 
-        csv_record e_t({edge_def});
-        csv_record n_t({node_def});
+        csv_record n_t(nodes_csv);
+        csv_record e_t(edges_csv);
 
         sonata_recipe recipe(n, e, n_t, e_t);
 

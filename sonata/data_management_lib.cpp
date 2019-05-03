@@ -274,11 +274,14 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
             if (nodes_[node_pop_id].find_group(std::to_string(nodes_grp_id)) != -1) {
                 auto lgi = nodes_[node_pop_id].find_group(std::to_string(nodes_grp_id));
                 auto group = nodes_[node_pop_id][lgi];
-                if (group.find_dataset(gp_var_id) != -1) {
-                    auto value = group.double_at(gp_var_id, nodes_grp_idx);
-                    density_vars[gp_id][var_id] = value;
+                if (group.find_group("dynamics_params") != -1) {
+                    auto dpi = group.find_group("dynamics_params");
+                    auto dyn_params = group[dpi];
+                    if (dyn_params.find_dataset(gp_var_id) != -1) {
+                        auto value = dyn_params.double_at(gp_var_id, nodes_grp_idx);
+                        density_vars[gp_id][var_id] = value;
+                    }
                 }
-
             }
         }
     }

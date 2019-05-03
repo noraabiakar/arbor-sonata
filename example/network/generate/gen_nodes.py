@@ -22,11 +22,12 @@ for i in range(0,400):
     node_type_id[i] = 100
 
 g0 = pop_e.create_group("0")
+dyn_param = g0.create_group("dynamics_params")
 
-g_pas = g0.create_dataset("pas_0.g_pas", (400,), dtype="f")
-e_pas = g0.create_dataset("pas_0.e_pas", (400,), dtype="f")
-gl_hh = g0.create_dataset("hh_0.gl_hh", (400,), dtype="f")
-el_hh = g0.create_dataset("hh_0.el_hh", (400,), dtype="f")
+g_pas = dyn_param.create_dataset("pas_0.g_pas", (400,), dtype="f")
+e_pas = dyn_param.create_dataset("pas_0.e_pas", (400,), dtype="f")
+gl_hh = dyn_param.create_dataset("hh_0.gl_hh", (400,), dtype="f")
+el_hh = dyn_param.create_dataset("hh_0.el_hh", (400,), dtype="f")
 
 for i in range(0,400):
     g_pas[i] = .001
@@ -49,11 +50,12 @@ for i in range(0,100):
     node_type_id[i] = 101
 
 g0 = pop_i.create_group("0")
+dyn_param = g0.create_group("dynamics_params")
 
-g_pas = g0.create_dataset("pas_0.g_pas", (400,), dtype="f")
-e_pas = g0.create_dataset("pas_0.e_pas", (400,), dtype="f")
-gl_hh = g0.create_dataset("hh_0.gl_hh", (400,), dtype="f")
-el_hh = g0.create_dataset("hh_0.el_hh", (400,), dtype="f")
+g_pas = dyn_param.create_dataset("pas_0.g_pas", (400,), dtype="f")
+e_pas = dyn_param.create_dataset("pas_0.e_pas", (400,), dtype="f")
+gl_hh = dyn_param.create_dataset("hh_0.gl_hh", (400,), dtype="f")
+el_hh = dyn_param.create_dataset("hh_0.el_hh", (400,), dtype="f")
 
 for i in range(0,100):
     g_pas[i] = .001

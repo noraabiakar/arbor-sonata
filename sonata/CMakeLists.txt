@@ -13,7 +13,7 @@ add_executable(
         sonata 
         sonata.cpp
         data_management_lib.cpp
-        include/json_helper.cpp)
+        include/dynamics_params_helper.cpp)
 
 target_link_libraries(sonata PRIVATE arbor::arbor arbor::arborenv ${HDF5_C_LIBRARIES})
 target_include_directories(sonata PRIVATE ../common/cpp/include ${HDF5_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})

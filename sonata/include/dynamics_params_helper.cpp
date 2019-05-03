@@ -9,8 +9,6 @@
 #include "density_mech_helper.hpp"
 
 arb::mechanism_desc read_dynamics_params_point(std::string fname) {
-    using sup::param_from_json;
-
     std::ifstream f(fname);
 
     if (!f.good()) {
@@ -38,7 +36,6 @@ arb::mechanism_desc read_dynamics_params_point(std::string fname) {
 }
 
 std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(std::string fname) {
-    using sup::param_from_json;
     std::ifstream f(fname);
 
     if (!f.good()) {
@@ -97,7 +94,6 @@ std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(s
 }
 
 std::unordered_map<std::string, variable_map> read_dynamics_params_density_override(std::string fname) {
-    using sup::param_from_json;
     std::ifstream f(fname);
 
     if (!f.good()) {
