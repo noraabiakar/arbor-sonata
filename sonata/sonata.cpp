@@ -46,6 +46,8 @@ class sonata_recipe: public arb::recipe {
 public:
     sonata_recipe(sonata_params params):
             database_(params.network.nodes, params.network.edges, params.network.nodes_types, params.network.edges_types),
+            run_params_(params.run),
+            sim_cond_(params.conditions),
             num_cells_(database_.num_cells()) {}
 
     cell_size_type num_cells() const override {
@@ -57,13 +59,19 @@ public:
     }
 
     arb::util::unique_any get_cell_description(cell_gid_type gid) const override {
-        std::vector<std::pair<arb::segment_location,double>> src_types;
+        std::vector<arb::segment_location> src_locs;
         std::vector<std::pair<arb::segment_location,arb::mechanism_desc>> tgt_types;
 
         std::lock_guard<std::mutex> l(mtx_);
         auto morph = database_.get_cell_morphology(gid);
         auto mechs = database_.get_density_mechs(gid);
-        database_.get_sources_and_targets(gid, src_types, tgt_types);
+
+        database_.get_sources_and_targets(gid, src_locs, tgt_types);
+
+        std::vector<std::pair<arb::segment_location,double>> src_types;
+        for (auto s: src_locs) {
+            src_types.push_back(std::make_pair(s, run_params_.threshold));
+        }
 
         return dummy_cell(morph, mechs, src_types, tgt_types);
     }
@@ -111,9 +119,20 @@ public:
         return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
     }
 
+    arb::util::any get_global_properties(cell_kind k) const override {
+        arb::cable_cell_global_properties a;
+        a.temperature_K = sim_cond_.temp_c + 273.15;
+        a.init_membrane_potential_mV = sim_cond_.v_init;
+        return a;
+    }
+
 private:
     mutable std::mutex mtx_;
     mutable database database_;
+
+    run_params run_params_;
+    sim_conditions sim_cond_;
+
     cell_size_type num_cells_;
     std::vector<unsigned> naive_partition_;
 };
@@ -190,7 +209,7 @@ int main(int argc, char **argv)
 
         std::cout << "running simulation" << std::endl;
         // Run the simulation for 100 ms, with time steps of 0.025 ms.
-        sim.run(100, 0.025);
+        sim.run(params.run.duration, params.run.dt);
 
         meters.checkpoint("model-run", context);
 

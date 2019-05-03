@@ -11,7 +11,7 @@ using arb::cell_member_type;
 using arb::segment_location;
 
 inline bool operator==(const source_type& lhs, const source_type& rhs) {
-    return lhs.segment   == rhs.segment && lhs.position  == rhs.position && lhs.threshold == rhs.threshold;
+    return lhs.segment   == rhs.segment && lhs.position  == rhs.position;
 }
 
 inline bool operator==(const target_type& lhs, const target_type& rhs) {
@@ -30,9 +30,7 @@ namespace std {
         {
             std::size_t const h1(std::hash<unsigned>{}(s.segment));
             std::size_t const h2(std::hash<double>{}(s.position));
-            std::size_t const h3(std::hash<double>{}(s.threshold));
-            auto h1_2 = h1 ^ (h2 << 1);
-            return (h1_2 >> 1) ^ (h3 << 1);
+            return h1 ^ (h2 << 1);
         }
     };
 }
@@ -94,7 +92,7 @@ void database::build_source_and_target_maps(const std::vector<arb::group_descrip
             std::vector<source_type> src_vec(src_set.begin(), src_set.end());
             std::sort(src_vec.begin(), src_vec.end(), [](const auto &a, const auto& b) -> bool
             {
-                return std::tie(a.segment, a.position, a.threshold) < std::tie(b.segment, b.position, b.threshold);
+                return std::tie(a.segment, a.position) < std::tie(b.segment, b.position);
             });
 
             loc_sources.insert(loc_sources.end(), src_vec.begin(), src_vec.end());
@@ -165,8 +163,8 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
                 auto loc = std::lower_bound(source_maps_[source_gid].begin(), source_maps_[source_gid].end(), src_rng[s],
                                             [](const auto& lhs, const auto& rhs) -> bool
                                             {
-                                                return std::tie(lhs.segment, lhs.position, lhs.threshold) <
-                                                       std::tie(rhs.segment, rhs.position, rhs.threshold);
+                                                return std::tie(lhs.segment, lhs.position) <
+                                                       std::tie(rhs.segment, rhs.position);
                                             });
 
                 if (loc != source_maps_[source_gid].end()) {
@@ -214,11 +212,11 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
 }
 
 void database::get_sources_and_targets(cell_gid_type gid,
-                                       std::vector<std::pair<segment_location, double>>& src,
+                                       std::vector<segment_location>& src,
                                        std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) {
     src.reserve(source_maps_[gid].size());
     for (auto s: source_maps_[gid]) {
-        src.push_back(std::make_pair(segment_location(s.segment, s.position), s.threshold));
+        src.push_back(segment_location(s.segment, s.position));
     }
 
     tgt.reserve(target_maps_[gid].size());
@@ -315,11 +313,10 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
         auto loc_grp_id = edges_grp_id[i];
 
         int source_branch;
-        double source_pos, threshold;
+        double source_pos;
 
         bool found_source_branch = false;
         bool found_source_pos = false;
-        bool found_threshold =false;
 
         // if the edges are in groups, for each edge find the group, if it exists
         if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
@@ -335,10 +332,6 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
                 source_pos = group.double_at("efferent_section_pos", loc_grp_idx);
                 found_source_pos = true;
             }
-            if (group.find_dataset("threshold") != -1) {
-                threshold = group.double_at("threshold", loc_grp_idx);
-                found_threshold = true;
-            }
         }
 
         // name and index of edge_type_id
@@ -350,11 +343,8 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
         if (!found_source_pos) {
             source_pos = std::atof(e_fields["efferent_section_pos"].c_str());
         }
-        if (!found_threshold) {
-            threshold = std::atof(e_fields["threshold"].c_str());
-        }
 
-        ret.emplace_back((unsigned)source_branch, source_pos, threshold);
+        ret.emplace_back((unsigned)source_branch, source_pos);
     }
     return ret;
 }

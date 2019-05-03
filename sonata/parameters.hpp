@@ -144,13 +144,20 @@ sonata_params read_options(int argc, char** argv) {
     nlohmann::json sim_json;
     sim_json << sim_config;
 
-    /**********************************************************************************/
+    // Read simulation conditions
+    auto conditions_field = sim_json.find("conditions");
+    sim_conditions conditions(read_sim_conditions(*conditions_field));
 
+    // Read run parameters
+    auto run_field = sim_json.find("run");
+    run_params run(read_run_params(*run_field));
+
+    // Read circuit_config file name from the "network" field
     auto network_field = sim_json.find("network");
     std::string network_file = *network_field;
 
+    // Open circuit_config
     std::ifstream circuit_config(network_file);
-
     if (!circuit_config.good()) {
         throw std::runtime_error("Unable to open input circuit config file: "+ network_file);
     }
@@ -158,25 +165,12 @@ sonata_params read_options(int argc, char** argv) {
     nlohmann::json circuit_json;
     circuit_json << circuit_config;
 
+    // Get json of network parameters
     auto circuit_config_map = circuit_json.get<std::unordered_map<std::string, nlohmann::json>>();
-
     auto node_edge_files = circuit_config_map["network"].get<std::unordered_map<std::string, nlohmann::json>>();
+
+    // Read network parameters
     network_params network(read_network_params(node_edge_files));
-
-    /*-----------------------------------------------*/
-
-    auto conditions_field = sim_json.find("conditions");
-    sim_conditions conditions(read_sim_conditions(*conditions_field));
-
-    std::cout << conditions.temp_c << std::endl;
-    std::cout << conditions.v_init << std::endl;
-
-    auto run_field = sim_json.find("run");
-    run_params run(read_run_params(*run_field));
-
-    std::cout << run.duration << std::endl;
-    std::cout << run.dt << std::endl;
-    std::cout << run.threshold << std::endl;
 
     sonata_params params(network, conditions, run);
 

@@ -22,10 +22,9 @@ using arb::segment_location;
 struct source_type {
     cell_lid_type segment;
     double position;
-    double threshold;
 
-    source_type(): segment(0), position(0), threshold(0) {}
-    source_type(cell_lid_type s, double p, double t) : segment(s), position(p), threshold(t) {}
+    source_type(): segment(0), position(0) {}
+    source_type(cell_lid_type s, double p) : segment(s), position(p) {}
 };
 
 bool operator==(const arb::mechanism_desc &lhs, const arb::mechanism_desc &rhs);
@@ -58,7 +57,7 @@ public:
     void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
 
     void get_sources_and_targets(cell_gid_type gid,
-                                 std::vector<std::pair<segment_location, double>>& src,
+                                 std::vector<segment_location>& src,
                                  std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt);
 
     arb::morphology get_cell_morphology(cell_gid_type gid);
