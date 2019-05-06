@@ -37,15 +37,12 @@ namespace std {
 class csv_file {
     std::string fileName;
     char delimeter;
+    std::vector<std::vector<std::string>> data;
 
 public:
     csv_file(std::string filename, char delm = ',') :
-            fileName(filename), delimeter(delm) { }
-
-    std::vector<std::vector<std::string>> get_data() {
+            fileName(filename), delimeter(delm) {
         std::ifstream file(fileName);
-
-        std::vector<std::vector<std::string>> data;
         std::string line;
 
         while (getline(file, line)) {
@@ -59,6 +56,9 @@ public:
             data.push_back(vec);
         }
         file.close();
+    }
+
+    std::vector<std::vector<std::string>> get_data() {
         return data;
     }
 

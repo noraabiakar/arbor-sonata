@@ -10,14 +10,22 @@
      "tstop": 100.0,
      "dt": 0.025, 
      "spike_threshold": 10 
-  }, 
+  },
+
+  "node_sets_file": "/home/abiakarn/git/arbor-sonata/example/inputs/node_set.json",
   
   "inputs": {
+    "clamp": {
+      "input_type": "current_clamp",
+      "module": "IClamp",
+      "electrode_file": "/home/abiakarn/git/arbor-sonata/example/inputs/clamp_electrode.csv",
+      "input_file": "/home/abiakarn/git/arbor-sonata/example/inputs/clamp_input.csv"
+    },
     "spikes": {
-      "input_type": "spikes", 
+      "input_type": "spikes",
       "module": "h5",
       "input_file": "/home/abiakarn/git/arbor-sonata/example/inputs/input_spikes.h5",
-      "node_set": "not_yet.json"
+      "node_set": "stim"
     }
   },
   

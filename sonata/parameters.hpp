@@ -8,6 +8,24 @@
 
 using h5_file_handle = std::shared_ptr<h5_file>;
 
+/*struct stim_loc {
+    unsigned gid;
+    std::string population;
+    unsigned sec_id;
+    double seg_x;
+};
+
+struct stim_param {
+    double duration;
+    double amplitude;
+    double delay;
+};
+
+struct i_stim {
+    stim_param params;
+    stim_loc loc;
+};*/
+
 struct network_params {
     hdf5_record nodes;
     csv_record nodes_types;
@@ -45,13 +63,19 @@ struct run_params {
     double threshold;
 };
 
+struct current_clamp {
+    csv_file stim_params;
+    csv_file stim_loc;
+};
+
 struct sonata_params {
     network_params network;
     sim_conditions conditions;
     run_params run;
+    current_clamp stimuli;
 
-    sonata_params(const network_params& n, const sim_conditions& s, const run_params& r):
-    network(n), conditions(s), run(r) {}
+    sonata_params(const network_params& n, const sim_conditions& s, const run_params& r, const current_clamp& stim):
+    network(n), conditions(s), run(r), stimuli(stim) {}
 };
 
 network_params read_network_params(nlohmann::json network_json) {
@@ -127,6 +151,90 @@ run_params read_run_params(nlohmann::json run_json) {
     return run;
 }
 
+current_clamp read_stimuli(std::unordered_map<std::string, nlohmann::json>& stim_json) {
+    using sup::param_from_json;
+
+    for (auto input: stim_json) {
+        if (input.second["input_type"] == "current_clamp") {
+            csv_file elec_file(input.second["electrode_file"].get<std::string>());
+            csv_file input_file(input.second["input_file"].get<std::string>());
+            return {elec_file, input_file};
+        }
+    }
+}
+
+/*std::vector<i_stim> read_stimuli(std::unordered_map<std::string, nlohmann::json>& stim_json) {
+    using sup::param_from_json;
+
+    std::unordered_map<unsigned,stim_loc> stim_locs;
+    std::unordered_map<unsigned,stim_param> stim_params;
+
+    for (auto input: stim_json) {
+        if (input.second["input_type"] == "current_clamp") {
+            csv_file elec_file(input.second["electrode_file"].get<std::string>());
+
+            auto csv_data_elec = elec_file.get_data();
+            auto col_names_elec = csv_data_elec.front();
+
+            for(auto it = csv_data_elec.begin()+1; it < csv_data_elec.end(); it++) {
+                stim_loc loc;
+                unsigned pos = 0, id;
+
+                for (auto field: *it) {
+                    if(col_names_elec[pos] == "electrode_id") {
+                        id = std::atoi(field.c_str());
+                    } else if (col_names_elec[pos] == "node_id") {
+                        loc.gid = std::atoi(field.c_str());
+                    } else if (col_names_elec[pos] == "population") {
+                        loc.population = field;
+                    } else if (col_names_elec[pos] == "sec_id") {
+                        loc.sec_id = std::atoi(field.c_str());
+                    } else if (col_names_elec[pos] == "seg_x") {
+                        loc.seg_x = std::atof(field.c_str());
+                    }
+                    pos++;
+                }
+                stim_locs[id] = loc;
+            }
+
+            csv_file input_file(input.second["input_file"].get<std::string>());
+
+            auto csv_data_input = input_file.get_data();
+            auto col_names_input = csv_data_input.front();
+
+            for(auto it = csv_data_input.begin()+1; it < csv_data_input.end(); it++) {
+                stim_param param;
+                unsigned pos = 0, id;
+
+                for (auto field: *it) {
+                    if(col_names_input[pos] == "electrode_id") {
+                        id = std::atoi(field.c_str());
+                    } else if (col_names_input[pos] == "dur") {
+                        param.duration = std::atof(field.c_str());
+                    } else if (col_names_input[pos] == "amp") {
+                        param.amplitude = std::atof(field.c_str());
+                    } else if (col_names_input[pos] == "delay") {
+                        param.delay = std::atof(field.c_str());
+                    }
+                    pos++;
+                }
+                stim_params[id] = param;
+            }
+        }
+    }
+
+    std::vector<i_stim> ret;
+    for (auto i: stim_locs) {
+        if (stim_params.find(i.first) != stim_params.end()) {
+            ret.push_back({stim_params.at(i.first), i.second});
+        }
+        else {
+            throw sonata_exception("Electrode id has no corresponding input description");
+        }
+    };
+    return ret;
+}*/
+
 
 sonata_params read_options(int argc, char** argv) {
     if (argc>2) {
@@ -167,12 +275,27 @@ sonata_params read_options(int argc, char** argv) {
 
     // Get json of network parameters
     auto circuit_config_map = circuit_json.get<std::unordered_map<std::string, nlohmann::json>>();
-    auto node_edge_files = circuit_config_map["network"].get<std::unordered_map<std::string, nlohmann::json>>();
 
     // Read network parameters
-    network_params network(read_network_params(node_edge_files));
+    network_params network(read_network_params(circuit_config_map["network"]));
 
-    sonata_params params(network, conditions, run);
+    // Get json of inputs
+    auto inputs_fields = sim_json["inputs"].get<std::unordered_map<std::string, nlohmann::json>>();
+
+    // Read network parameters
+    auto stimuli = read_stimuli(inputs_fields);
+
+    /*for (auto i: stimuli) {
+        std::cout << "delay : " << i.params.delay << std::endl;
+        std::cout << "duration : " << i.params.duration << std::endl;
+        std::cout << "amplitude : " << i.params.amplitude << std::endl;
+        std::cout << "gid : " << i.loc.gid << std::endl;
+        std::cout << "pop : " << i.loc.population << std::endl;
+        std::cout << "seg : " << i.loc.sec_id << std::endl;
+        std::cout << "pos : " << i.loc.seg_x << std::endl;
+    }*/
+
+    sonata_params params(network, conditions, run, stimuli);
 
     return params;
 }

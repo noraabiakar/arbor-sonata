@@ -19,6 +19,16 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
+struct current_stim {
+    double duration;
+    double amplitude;
+    double delay;
+    arb::segment_location stim_loc;
+
+    current_stim(double dur, double amp, double del, arb::segment_location loc):
+            duration(dur), amplitude(amp), delay(del), stim_loc(loc){}
+};
+
 struct source_type {
     cell_lid_type segment;
     double position;
@@ -54,11 +64,20 @@ public:
     }
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
 
+    void build_current_stim_map(csv_file stim_params, csv_file stim_loc);
+
     void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
 
     void get_sources_and_targets(cell_gid_type gid,
                                  std::vector<segment_location>& src,
                                  std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt);
+
+    std::vector<current_stim> get_current_stims(cell_gid_type gid) {
+        if (current_stims_.find(gid) != current_stims_.end()) {
+            return current_stims_.at(gid);
+        }
+        return {};
+    };
 
     arb::morphology get_cell_morphology(cell_gid_type gid);
 
@@ -140,6 +159,8 @@ private:
     hdf5_record edges_;
     csv_record node_types_;
     csv_record edge_types_;
+
+    std::unordered_map<cell_gid_type, std::vector<current_stim>> current_stims_;
 
     std::unordered_map<cell_gid_type, std::vector<source_type>> source_maps_;
     std::unordered_map<cell_gid_type, std::vector<std::pair<target_type, unsigned>>> target_maps_;

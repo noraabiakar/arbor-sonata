@@ -48,7 +48,10 @@ public:
             database_(params.network.nodes, params.network.edges, params.network.nodes_types, params.network.edges_types),
             run_params_(params.run),
             sim_cond_(params.conditions),
-            num_cells_(database_.num_cells()) {}
+            num_cells_(database_.num_cells())
+    {
+        database_.build_current_stim_map(params.stimuli.stim_params, params.stimuli.stim_loc);
+    }
 
     cell_size_type num_cells() const override {
         return num_cells_;
@@ -73,7 +76,15 @@ public:
             src_types.push_back(std::make_pair(s, run_params_.threshold));
         }
 
-        return dummy_cell(morph, mechs, src_types, tgt_types);
+        auto cell = dummy_cell(morph, mechs, src_types, tgt_types);
+
+        auto stims = database_.get_current_stims(gid);
+        for (auto s: stims) {
+            arb::i_clamp stim(s.delay, s.duration, s.amplitude);
+            cell.add_stimulus(s.stim_loc, stim);
+        }
+
+        return cell;
     }
 
     cell_kind get_cell_kind(cell_gid_type gid) const override { return cell_kind::cable; }
@@ -99,10 +110,10 @@ public:
 
     std::vector<arb::event_generator> event_generators(cell_gid_type gid) const override {
         std::vector<arb::event_generator> gens;
-        if (gid == 1) {
+        /*if (gid == 1) {
             float t = ((float)gid/num_cells())*3.0;
             gens.push_back(arb::explicit_generator(arb::pse_vector{{{gid, 0}, t, 0.009}}));
-        }
+        }*/
         return gens;
     }
 
