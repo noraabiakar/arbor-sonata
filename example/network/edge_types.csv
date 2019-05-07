@@ -3,3 +3,4 @@ edge_type_id,pop_name,source_pop_name,target_pop_name,model_template,dynamics_pa
 101,pop_i_e,pop_i,pop_e,expsyn,/home/abiakarn/git/arbor-sonata/example/components/point_params/expsyn.json,0.1,-0.01,0,0.2,0,0.9,10
 102,pop_i_i,pop_i,pop_i,expsyn,/home/abiakarn/git/arbor-sonata/example/components/point_params/expsyn.json,0.1,-0.01,1,0.2,0,0.5,10
 103,pop_e_i,pop_e,pop_i,expsyn,/home/abiakarn/git/arbor-sonata/example/components/point_params/expsyn.json,0.1,0.01,0,0.5,0,0.9,10
+200,pop_ext_e,pop_ext,pop_e,expsyn,NULL,0.1,0.01,0,0,0,0,10

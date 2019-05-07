@@ -329,6 +329,17 @@ arb::morphology database::get_cell_morphology(cell_gid_type gid) {
     return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
 }
 
+arb::cell_kind database::get_cell_kind(cell_gid_type gid) {
+    auto loc_node = localize_cell(gid);
+    auto node_pop_id = loc_node.pop_id;
+    auto node_id = loc_node.el_id;
+
+    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto node_pop_name = nodes_[node_pop_id].name();
+
+    return node_types_.get_cell_kind(type_pop_id(node_type_tag, node_pop_name));
+}
+
 std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_density_mechs(cell_gid_type gid) {
     auto loc_node = localize_cell(gid);
     auto node_pop_id = loc_node.pop_id;

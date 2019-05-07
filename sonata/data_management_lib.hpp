@@ -81,6 +81,8 @@ public:
 
     arb::morphology get_cell_morphology(cell_gid_type gid);
 
+    arb::cell_kind get_cell_kind(cell_gid_type gid);
+
     // Returns section -> mechanisms
     std::unordered_map<std::string, std::vector<arb::mechanism_desc>> get_density_mechs(cell_gid_type);
 

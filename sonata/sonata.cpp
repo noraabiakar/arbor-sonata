@@ -7,6 +7,7 @@
 #include <arbor/context.hpp>
 #include <arbor/load_balance.hpp>
 #include <arbor/cable_cell.hpp>
+#include <arbor/spike_source_cell.hpp>
 #include <arbor/profile/meter_manager.hpp>
 #include <arbor/profile/profiler.hpp>
 #include <arbor/simple_sampler.hpp>
@@ -50,6 +51,7 @@ public:
             sim_cond_(params.conditions),
             num_cells_(database_.num_cells())
     {
+        std::lock_guard<std::mutex> l(mtx_);
         database_.build_current_stim_map(params.stimuli.stim_params, params.stimuli.stim_loc);
     }
 
@@ -58,36 +60,46 @@ public:
     }
 
     void build_local_maps(const arb::domain_decomposition& decomp) {
+        std::lock_guard<std::mutex> l(mtx_);
         database_.build_source_and_target_maps(decomp.groups);
     }
 
     arb::util::unique_any get_cell_description(cell_gid_type gid) const override {
-        std::vector<arb::segment_location> src_locs;
-        std::vector<std::pair<arb::segment_location,arb::mechanism_desc>> tgt_types;
+        if (get_cell_kind(gid) == cell_kind::cable) {
+            std::vector<arb::segment_location> src_locs;
+            std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> tgt_types;
 
-        std::lock_guard<std::mutex> l(mtx_);
-        auto morph = database_.get_cell_morphology(gid);
-        auto mechs = database_.get_density_mechs(gid);
+            std::lock_guard<std::mutex> l(mtx_);
+            auto morph = database_.get_cell_morphology(gid);
+            auto mechs = database_.get_density_mechs(gid);
 
-        database_.get_sources_and_targets(gid, src_locs, tgt_types);
+            database_.get_sources_and_targets(gid, src_locs, tgt_types);
 
-        std::vector<std::pair<arb::segment_location,double>> src_types;
-        for (auto s: src_locs) {
-            src_types.push_back(std::make_pair(s, run_params_.threshold));
+            std::vector<std::pair<arb::segment_location, double>> src_types;
+            for (auto s: src_locs) {
+                src_types.push_back(std::make_pair(s, run_params_.threshold));
+            }
+
+            auto cell = dummy_cell(morph, mechs, src_types, tgt_types);
+
+            auto stims = database_.get_current_stims(gid);
+            for (auto s: stims) {
+                arb::i_clamp stim(s.delay, s.duration, s.amplitude);
+                cell.add_stimulus(s.stim_loc, stim);
+            }
+
+            return cell;
         }
-
-        auto cell = dummy_cell(morph, mechs, src_types, tgt_types);
-
-        auto stims = database_.get_current_stims(gid);
-        for (auto s: stims) {
-            arb::i_clamp stim(s.delay, s.duration, s.amplitude);
-            cell.add_stimulus(s.stim_loc, stim);
+        else {
+            //std::vector<double> time_sequence = database_.get_input_spikes(gid);
+            return arb::util::unique_any(arb::spike_source_cell{arb::explicit_schedule({0.})});
         }
-
-        return cell;
     }
 
-    cell_kind get_cell_kind(cell_gid_type gid) const override { return cell_kind::cable; }
+    cell_kind get_cell_kind(cell_gid_type gid) const override {
+        std::lock_guard<std::mutex> l(mtx_);
+        return database_.get_cell_kind(gid);
+    }
 
     cell_size_type num_sources(cell_gid_type gid) const override {
         std::lock_guard<std::mutex> l(mtx_);
@@ -110,10 +122,6 @@ public:
 
     std::vector<arb::event_generator> event_generators(cell_gid_type gid) const override {
         std::vector<arb::event_generator> gens;
-        /*if (gid == 1) {
-            float t = ((float)gid/num_cells())*3.0;
-            gens.push_back(arb::explicit_generator(arb::pse_vector{{{gid, 0}, t, 0.009}}));
-        }*/
         return gens;
     }
 
