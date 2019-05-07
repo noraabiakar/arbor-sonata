@@ -1,6 +1,6 @@
 {
   "stim": {
-    "population": "pop_e"
+    "population": "pop_ext"
   },
 
   "recorded_cells":{

@@ -29,6 +29,11 @@ struct current_stim {
             duration(dur), amplitude(amp), delay(del), stim_loc(loc){}
 };
 
+struct spike_info {
+    h5_wrapper data;
+    std::string population;
+};
+
 struct source_type {
     cell_lid_type segment;
     double position;
@@ -53,8 +58,8 @@ struct target_type {
 
 class database {
 public:
-    database(hdf5_record nodes, hdf5_record edges, csv_record node_types, csv_record edge_types):
-            nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types) {}
+    database(hdf5_record nodes, hdf5_record edges, csv_record node_types, csv_record edge_types, h5_wrapper spikes, std::string population):
+            nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types), spikes_{spikes, population} {}
 
     cell_size_type num_cells() {
         return nodes_.num_elements();
@@ -78,6 +83,8 @@ public:
         }
         return {};
     };
+
+    std::vector<double> get_spikes(cell_gid_type gid);
 
     arb::morphology get_cell_morphology(cell_gid_type gid);
 
@@ -163,6 +170,7 @@ private:
     csv_record edge_types_;
 
     std::unordered_map<cell_gid_type, std::vector<current_stim>> current_stims_;
+    spike_info spikes_;
 
     std::unordered_map<cell_gid_type, std::vector<source_type>> source_maps_;
     std::unordered_map<cell_gid_type, std::vector<std::pair<target_type, unsigned>>> target_maps_;

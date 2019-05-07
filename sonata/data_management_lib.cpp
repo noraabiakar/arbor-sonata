@@ -376,6 +376,15 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
     return node_types_.density_mech_desc(type_pop_id(nodes_type_tag, nodes_pop_name), std::move(density_vars));
 }
 
+std::vector<double> database::get_spikes(cell_gid_type gid) {
+    auto loc_cell = localize_cell(gid);
+    if (nodes_[loc_cell.pop_id].name() != spikes_.population) {
+        return {};
+    }
+    auto range = spikes_.data[0].int_pair_at("gid_to_range", loc_cell.el_id);
+    return spikes_.data[0].double_range("timestamps", range.first, range.second);
+};
+
 unsigned database::num_sources(cell_gid_type gid) {
     return source_maps_[gid].size();
 }

@@ -50,14 +50,19 @@ struct current_clamp {
     csv_file stim_loc;
 };
 
+struct spike_record {
+    h5_wrapper data;
+    std::string population;
+};
+
 struct sonata_params {
     network_params network;
     sim_conditions conditions;
     run_params run;
     current_clamp stimuli;
-
-    sonata_params(const network_params& n, const sim_conditions& s, const run_params& r, const current_clamp& stim):
-    network(n), conditions(s), run(r), stimuli(stim) {}
+    spike_record spikes;
+    sonata_params(const network_params& n, const sim_conditions& s, const run_params& r, const current_clamp& stim, const spike_record& sp):
+    network(n), conditions(s), run(r), stimuli(stim), spikes(sp) {}
 };
 
 network_params read_network_params(nlohmann::json network_json) {
@@ -145,6 +150,30 @@ current_clamp read_stimuli(std::unordered_map<std::string, nlohmann::json>& stim
     }
 }
 
+spike_record read_spikes(std::unordered_map<std::string, nlohmann::json>& spike_json, std::string node_set_file) {
+    using sup::param_from_json;
+
+    for (auto input: spike_json) {
+        if (input.second["input_type"] == "spikes") {
+            h5_wrapper rec(h5_file(input.second["input_file"].get<std::string>()).top_group_);
+
+            nlohmann::json node_set_json;
+
+            std::ifstream node_set(node_set_file);
+            if (!node_set.good()) {
+                throw std::runtime_error("Unable to open node_set_file: "+ node_set_file);
+            }
+            node_set_json << node_set;
+
+            std::string given_set = input.second["node_set"].get<std::string>();
+            auto node_set_params = node_set_json[given_set];
+
+            std::string pop = node_set_params["population"].get<std::string>();
+            return {rec, pop};
+        }
+    }
+}
+
 sonata_params read_options(int argc, char** argv) {
     if (argc>2) {
         throw std::runtime_error("More than one command line option not permitted.");
@@ -191,10 +220,15 @@ sonata_params read_options(int argc, char** argv) {
     // Get json of inputs
     auto inputs_fields = sim_json["inputs"].get<std::unordered_map<std::string, nlohmann::json>>();
 
+    // Node set file name
+    auto node_set = sim_json.find("node_sets_file");
+    std::string node_set_file = *node_set;
+
     // Read network parameters
     auto stimuli = read_stimuli(inputs_fields);
+    auto spikes = read_spikes(inputs_fields, node_set_file);
 
-    sonata_params params(network, conditions, run, stimuli);
+    sonata_params params(network, conditions, run, stimuli, spikes);
 
     return params;
 }

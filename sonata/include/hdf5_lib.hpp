@@ -513,10 +513,6 @@ public:
                 throw sonata_exception("file hierarchy wrong\n");
             }
 
-            if (f->top_group_->groups_.front()->groups_.size() != 1) {
-                throw sonata_exception("file hierarchy wrong\n");
-            }
-
             for (auto g: f->top_group_->groups_.front()->groups_) {
                 map_[g->name()] = idx++;
                 populations_.emplace_back(g);

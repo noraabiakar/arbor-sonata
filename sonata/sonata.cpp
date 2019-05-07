@@ -46,7 +46,7 @@ void write_trace_json(const arb::trace_data<double>& trace);
 class sonata_recipe: public arb::recipe {
 public:
     sonata_recipe(sonata_params params):
-            database_(params.network.nodes, params.network.edges, params.network.nodes_types, params.network.edges_types),
+            database_(params.network.nodes, params.network.edges, params.network.nodes_types, params.network.edges_types, params.spikes.data, params.spikes.population),
             run_params_(params.run),
             sim_cond_(params.conditions),
             num_cells_(database_.num_cells())
@@ -91,8 +91,9 @@ public:
             return cell;
         }
         else {
-            //std::vector<double> time_sequence = database_.get_input_spikes(gid);
-            return arb::util::unique_any(arb::spike_source_cell{arb::explicit_schedule({0.})});
+            std::lock_guard<std::mutex> l(mtx_);
+            std::vector<double> time_sequence = database_.get_spikes(gid);
+            return arb::util::unique_any(arb::spike_source_cell{arb::explicit_schedule(time_sequence)});
         }
     }
 
