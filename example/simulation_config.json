@@ -31,6 +31,6 @@
   
   "outputs": {
     "spikes_file": "output_spikes.h5",
-    "spikes_sort_order": "gid"
+    "spikes_sort_order": "time"
   }
 }

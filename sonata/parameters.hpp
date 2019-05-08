@@ -239,25 +239,41 @@ sonata_params read_options(int argc, char** argv) {
     return params;
 }
 
-void write_spikes(std::string file_name, std::vector<arb::spike> spikes, const network_params& network) {
-    hsize_t size = spikes.size();
-
-    int spike_gids[size];
-    double spike_times[size];
-
-    for (unsigned i = 0; i < size; i++) {
-        spike_gids[i] = spikes[i].source.gid;
-        spike_times[i] = spikes[i].time;
-    }
+void write_spikes(std::string file_name, std::vector<arb::spike> spikes, std::vector<std::string> pop_names, std::vector<int> pop_part) {
 
     auto file = H5Fcreate (file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-    auto space = H5Screate_simple (1, &size, NULL);
-    auto dset = H5Dcreate (file, "gids", H5T_STD_I32LE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    auto group = H5Gcreate (file, "spikes", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-    auto status = H5Dwrite (dset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, spike_gids);
+    for (unsigned p = 0; p < pop_names.size(); p++) {
+        std::string full_group_name = "/spikes/" + pop_names[p];
+        std::string full_dset_gid_name = full_group_name + "/node_ids";
+        std::string full_dset_time_name = full_group_name + "/timestamps";
 
-    H5Dclose (dset);
-    H5Sclose (space);
+        auto pop_group = H5Gcreate (file, full_group_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+        hsize_t size = pop_part[p+1] - pop_part[p];
+
+        int spike_gids[size];
+        double spike_times[size];
+
+        for (unsigned i = pop_part[p]; i < pop_part[p+1]; i++) {
+            spike_gids[i - pop_part[p]] = spikes[i].source.gid;
+            spike_times[i - pop_part[p]] = spikes[i].time;
+        }
+
+        auto space = H5Screate_simple(1, &size, NULL);
+        auto dset_gid = H5Dcreate(file, full_dset_gid_name.c_str(), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        auto dset_time = H5Dcreate(file, full_dset_time_name.c_str(), H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+        H5Dwrite(dset_gid, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, spike_gids);
+        H5Dwrite(dset_time, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, spike_times);
+
+        H5Dclose(dset_gid);
+        H5Dclose(dset_time);
+        H5Sclose(space);
+        H5Gclose(pop_group);
+    }
+    H5Gclose (group);
     H5Fclose (file);
 }
 

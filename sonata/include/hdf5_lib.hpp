@@ -424,6 +424,13 @@ public:
         return -1;
     }
 
+    int dataset_size(std::string name) {
+        if (dset_map.find(name) != dset_map.end()) {
+            return ptr->datasets_[dset_map[name]]->size();
+        }
+        return -1;
+    }
+
     int int_at(std::string name, unsigned i) {
         if (find_dataset(name) != -1) {
             return ptr->datasets_[dset_map[name]]->int_at(i);
@@ -556,7 +563,7 @@ public:
         }
     }
 
-    int num_elements() {
+    int num_elements() const {
         return num_elements_;
     }
 
@@ -564,7 +571,7 @@ public:
         return populations_[i];
     }
 
-    std::vector<h5_wrapper> populations() {
+    std::vector<h5_wrapper> populations() const {
         return populations_;
     }
 
@@ -572,7 +579,7 @@ public:
         return partition_;
     }
 
-    std::unordered_map<std::string, unsigned> map() {
+    std::unordered_map<std::string, unsigned> map() const {
         return map_;
     }
 
