@@ -51,7 +51,7 @@ public:
                       params.network.nodes_types,
                       params.network.edges_types,
                       params.spikes,
-                      params.current_clamp),
+                      params.current_clamps),
             run_params_(params.run),
             sim_cond_(params.conditions),
             num_cells_(database_.num_cells()) {}
@@ -155,7 +155,6 @@ private:
     sim_conditions sim_cond_;
 
     cell_size_type num_cells_;
-    std::vector<unsigned> naive_partition_;
 };
 
 int main(int argc, char **argv)
@@ -240,19 +239,19 @@ int main(int argc, char **argv)
         // Write spikes to file
         if (root) {
             std::cout << "\n" << ns << " spikes generated \n";
-            std::ofstream fid("spikes.gdf");
-            if (!fid.good()) {
-                std::cerr << "Warning: unable to open file spikes.gdf for spike output\n";
+            if (params.spike_output.sort_by == "time") {
+                std::sort(recorded_spikes.begin(), recorded_spikes.end(), [](const arb::spike& a, const arb::spike& b) -> bool
+                        {
+                            return a.time < b.time;
+                        });
             }
-            else {
-                char linebuf[45];
-                for (auto spike: recorded_spikes) {
-                    auto n = std::snprintf(
-                            linebuf, sizeof(linebuf), "%u %.4f\n",
-                            unsigned{spike.source.gid}, float(spike.time));
-                    fid.write(linebuf, n);
-                }
+            else if (params.spike_output.sort_by == "gid") {
+                std::sort(recorded_spikes.begin(), recorded_spikes.end(), [](const arb::spike& a, const arb::spike& b) -> bool
+                {
+                    return a.source < b.source;
+                });
             }
+            write_spikes(params.spike_output.file_name, recorded_spikes, params.network);
         }
 
         // Write the samples to a json file.

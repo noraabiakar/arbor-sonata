@@ -68,16 +68,16 @@ for i in range(0,100):
 
 ############################################################################
 
-node_group_id = pop_ext.create_dataset("node_group_id", (1,), dtype='i')
-for i in range(0,1):
+node_group_id = pop_ext.create_dataset("node_group_id", (5,), dtype='i')
+for i in range(0,5):
     node_group_id[i] = 0
 
-node_group_index = pop_ext.create_dataset("node_group_index", (1,), dtype='i')
-for i in range(0,1):
+node_group_index = pop_ext.create_dataset("node_group_index", (5,), dtype='i')
+for i in range(0,5):
     node_group_index[i] = i
 
-node_type_id = pop_ext.create_dataset("node_type_id", (1,), dtype='i')
-for i in range(0,1):
+node_type_id = pop_ext.create_dataset("node_type_id", (5,), dtype='i')
+for i in range(0,5):
     node_type_id[i] = 200
 
 

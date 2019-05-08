@@ -10,7 +10,7 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
-void database::build_current_clamp_map(current_clamp_info current) {
+void database::build_current_clamp_map(std::vector<current_clamp_info> current) {
 
     struct param_info {
         double dur;
@@ -24,69 +24,70 @@ void database::build_current_clamp_map(current_clamp_info current) {
         unsigned seg;
         double pos;
     };
+    for (auto curr_clamp : current){
+        std::unordered_map<unsigned, param_info> param_map;
+        std::unordered_map<unsigned, loc_info> loc_map;
 
-    std::unordered_map<unsigned, param_info> param_map;
-    std::unordered_map<unsigned, loc_info> loc_map;
+        auto stim_param_data = curr_clamp.stim_params.get_data();
+        auto stim_param_cols = stim_param_data.front();
 
-    auto stim_param_data = current.stim_params.get_data();
-    auto stim_param_cols = stim_param_data.front();
+        for(auto it = stim_param_data.begin()+1; it < stim_param_data.end(); it++) {
+            loc_info loc;
+            unsigned pos = 0, id;
 
-    for(auto it = stim_param_data.begin()+1; it < stim_param_data.end(); it++) {
-        loc_info loc;
-        unsigned pos = 0, id;
-
-        for (auto field: *it) {
-            if(stim_param_cols[pos] == "electrode_id") {
-                id = std::atoi(field.c_str());
-            } else if (stim_param_cols[pos] == "node_id") {
-                loc.gid = std::atoi(field.c_str());
-            } else if (stim_param_cols[pos] == "population") {
-                loc.population = field;
-            } else if (stim_param_cols[pos] == "sec_id") {
-                loc.seg = std::atoi(field.c_str());
-            } else if (stim_param_cols[pos] == "seg_x") {
-                loc.pos = std::atof(field.c_str());
+            for (auto field: *it) {
+                if(stim_param_cols[pos] == "electrode_id") {
+                    id = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "node_id") {
+                    loc.gid = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "population") {
+                    loc.population = field;
+                } else if (stim_param_cols[pos] == "sec_id") {
+                    loc.seg = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "seg_x") {
+                    loc.pos = std::atof(field.c_str());
+                }
+                pos++;
             }
-            pos++;
+            loc_map[id] = loc;
         }
-        loc_map[id] = loc;
-    }
 
-    auto stim_loc_data = current.stim_loc.get_data();
-    auto stim_loc_cols = stim_loc_data.front();
+        auto stim_loc_data = curr_clamp.stim_loc.get_data();
+        auto stim_loc_cols = stim_loc_data.front();
 
-    for(auto it = stim_loc_data.begin()+1; it < stim_loc_data.end(); it++) {
-        param_info param;
-        unsigned pos = 0, id;
+        for(auto it = stim_loc_data.begin()+1; it < stim_loc_data.end(); it++) {
+            param_info param;
+            unsigned pos = 0, id;
 
-        for (auto field: *it) {
-            if(stim_loc_cols[pos] == "electrode_id") {
-                id = std::atoi(field.c_str());
-            } else if (stim_loc_cols[pos] == "dur") {
-                param.dur = std::atof(field.c_str());
-            } else if (stim_loc_cols[pos] == "amp") {
-                param.amp = std::atof(field.c_str());
-            } else if (stim_loc_cols[pos] == "delay") {
-                param.delay = std::atof(field.c_str());
+            for (auto field: *it) {
+                if(stim_loc_cols[pos] == "electrode_id") {
+                    id = std::atoi(field.c_str());
+                } else if (stim_loc_cols[pos] == "dur") {
+                    param.dur = std::atof(field.c_str());
+                } else if (stim_loc_cols[pos] == "amp") {
+                    param.amp = std::atof(field.c_str());
+                } else if (stim_loc_cols[pos] == "delay") {
+                    param.delay = std::atof(field.c_str());
+                }
+                pos++;
             }
-            pos++;
+            param_map[id] = param;
         }
-        param_map[id] = param;
+
+        for (auto i: loc_map) {
+            if (param_map.find(i.first) != param_map.end()) {
+                auto params = param_map.at(i.first);
+
+                auto local_loc = i.second;
+                auto global_gid = globalize_cell({local_loc.gid, nodes_.map()[local_loc.population]});
+
+                current_clamps_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
+            }
+            else {
+                throw sonata_exception("Electrode id has no corresponding input description");
+            }
+        };
     }
-
-    for (auto i: loc_map) {
-        if (param_map.find(i.first) != param_map.end()) {
-            auto params = param_map.at(i.first);
-
-            auto local_loc = i.second;
-            auto global_gid = globalize_cell({local_loc.gid, nodes_.map()[local_loc.population]});
-
-            current_clamps_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
-        }
-        else {
-            throw sonata_exception("Electrode id has no corresponding input description");
-        }
-    };
 }
 
 void database::build_source_and_target_maps(const std::vector<arb::group_description>& groups) {
@@ -350,12 +351,28 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
 }
 
 std::vector<double> database::get_spikes(cell_gid_type gid) {
+    std::vector<double> spike_times;
+
     auto loc_cell = localize_cell(gid);
-    if (nodes_[loc_cell.pop_id].name() != spikes_.population) {
-        return {};
+
+    for (auto sp: spikes_) {
+        if (nodes_[loc_cell.pop_id].name() != sp.population) {
+            continue;
+        }
+
+        auto spike_idx = sp.data.find_group("spikes");
+        if (spike_idx == -1) {
+            throw sonata_exception("Input spikes file doesn't have top level group \"spikes\"");
+        }
+        auto range = sp.data[spike_idx].int_pair_at("gid_to_range", loc_cell.el_id);
+
+        auto spk_times = sp.data[spike_idx].double_range("timestamps", range.first, range.second);
+
+        spike_times.insert(spike_times.end(), spk_times.begin(), spk_times.end());
     }
-    auto range = spikes_.data[0].int_pair_at("gid_to_range", loc_cell.el_id);
-    return spikes_.data[0].double_range("timestamps", range.first, range.second);
+
+    std::sort(spike_times.begin(), spike_times.end());
+    return spike_times;
 };
 
 unsigned database::num_sources(cell_gid_type gid) {

@@ -2,6 +2,8 @@
 #include <fstream>
 #include <set>
 
+#include <hdf5.h>
+
 #include <common/json_params.hpp>
 
 #include "data_management_lib.hpp"
@@ -45,15 +47,21 @@ struct run_params {
     double threshold;
 };
 
+struct spike_out_info {
+    std::string file_name;
+    std::string sort_by;
+};
+
 struct sonata_params {
     network_params network;
     sim_conditions conditions;
     run_params run;
-    current_clamp_info current_clamp;
-    spike_info spikes;
+    std::vector<current_clamp_info> current_clamps;
+    std::vector<spike_info> spikes;
+    spike_out_info spike_output;
 
-    sonata_params(const network_params& n, const sim_conditions& s, const run_params& r, const current_clamp_info& stim, const spike_info& sp):
-    network(n), conditions(s), run(r), current_clamp(stim), spikes(sp) {}
+    sonata_params(const network_params& n, const sim_conditions& s, const run_params& r, const std::vector<current_clamp_info>& clamps, const std::vector<spike_info>& spks, const spike_out_info& output):
+    network(n), conditions(s), run(r), current_clamps(clamps), spikes(spks), spike_output(output) {}
 };
 
 network_params read_network_params(nlohmann::json network_json) {
@@ -129,20 +137,23 @@ run_params read_run_params(nlohmann::json run_json) {
     return run;
 }
 
-current_clamp_info read_stimuli(std::unordered_map<std::string, nlohmann::json>& stim_json) {
+std::vector<current_clamp_info> read_clamps(std::unordered_map<std::string, nlohmann::json>& stim_json) {
     using sup::param_from_json;
+    std::vector<current_clamp_info> ret;
 
     for (auto input: stim_json) {
         if (input.second["input_type"] == "current_clamp") {
             csv_file elec_file(input.second["electrode_file"].get<std::string>());
             csv_file input_file(input.second["input_file"].get<std::string>());
-            return {elec_file, input_file};
+            ret.push_back({elec_file, input_file});
         }
     }
+    return ret;
 }
 
-spike_info read_spikes(std::unordered_map<std::string, nlohmann::json>& spike_json, std::string node_set_file) {
+std::vector<spike_info> read_spikes(std::unordered_map<std::string, nlohmann::json>& spike_json, std::string node_set_file) {
     using sup::param_from_json;
+    std::vector<spike_info> ret;
 
     for (auto input: spike_json) {
         if (input.second["input_type"] == "spikes") {
@@ -160,9 +171,10 @@ spike_info read_spikes(std::unordered_map<std::string, nlohmann::json>& spike_js
             auto node_set_params = node_set_json[given_set];
 
             std::string pop = node_set_params["population"].get<std::string>();
-            return {rec, pop};
+            ret.push_back({rec, pop});
         }
     }
+    return ret;
 }
 
 sonata_params read_options(int argc, char** argv) {
@@ -216,10 +228,36 @@ sonata_params read_options(int argc, char** argv) {
     std::string node_set_file = *node_set;
 
     // Read network parameters
-    auto stimuli = read_stimuli(inputs_fields);
+    auto clamps = read_clamps(inputs_fields);
     auto spikes = read_spikes(inputs_fields, node_set_file);
 
-    sonata_params params(network, conditions, run, stimuli, spikes);
+    auto spike_output = sim_json["outputs"];
+    spike_out_info output{spike_output["spikes_file"], spike_output["spikes_sort_order"]};
+
+    sonata_params params(network, conditions, run, clamps, spikes, output);
 
     return params;
 }
+
+void write_spikes(std::string file_name, std::vector<arb::spike> spikes, const network_params& network) {
+    hsize_t size = spikes.size();
+
+    int spike_gids[size];
+    double spike_times[size];
+
+    for (unsigned i = 0; i < size; i++) {
+        spike_gids[i] = spikes[i].source.gid;
+        spike_times[i] = spikes[i].time;
+    }
+
+    auto file = H5Fcreate (file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    auto space = H5Screate_simple (1, &size, NULL);
+    auto dset = H5Dcreate (file, "gids", H5T_STD_I32LE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    auto status = H5Dwrite (dset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, spike_gids);
+
+    H5Dclose (dset);
+    H5Sclose (space);
+    H5Fclose (file);
+}
+

@@ -298,9 +298,9 @@ for i in range(0,nedges):
 
 ##################################################################################
 
-nedges = 1
+nedges = 4
 ntgts = 400
-nsrcs = 1
+nsrcs = 5
 s2t_ratio = nsrcs//ntgts #1
 nedges_per_tgt = nedges//ntgts #1
 nedges_per_src = nedges//nsrcs #1
@@ -319,22 +319,30 @@ for i in range(0,nedges):
 
 source_node_id = pop_ext_e.create_dataset("source_node_id", (nedges,), dtype="i")
 for i in range(0,nedges):
-    source_node_id[i] = 0
+    if i == 0:
+        source_node_id[i] = i
+    else : 
+        source_node_id[i] = i+1
 
 target_node_id = pop_ext_e.create_dataset("target_node_id", (nedges,), dtype="i")
 for i in range(0,nedges):
-    target_node_id[i] = 1
+    target_node_id[i] = i*100
 
 ind = pop_ext_e.create_group("indicies")
 source_to_target = ind.create_group("source_to_target")
 
 node_id_to_ranges = source_to_target.create_dataset("node_id_to_ranges", (nsrcs,2), dtype="i")
 for i in range(0,nsrcs):
-    node_id_to_ranges[i] = 0, 1
+    if i == 0:
+        node_id_to_ranges[i] = i, i+1
+    if i == 1:
+        node_id_to_ranges[i] = i, i
+    if i > 1: 
+        node_id_to_ranges[i] = i-1, i
 
 range_to_edge_id = source_to_target.create_dataset("range_to_edge_id", (nedges,2), dtype="i")
 for i in range(0, nedges):
-    range_to_edge_id[i] = 0, 1
+    range_to_edge_id[i] = i, i+1
          
 target_to_source = ind.create_group("target_to_source")
 
@@ -342,7 +350,7 @@ node_id_to_ranges = target_to_source.create_dataset("node_id_to_ranges", (ntgts,
 start = 0
 end = 0
 for i in range(0,ntgts):
-    if i==1: 
+    if i==0 or i==100 or i==200 or i==300: 
         end = end + 1
         node_id_to_ranges[i] = start, end
         start = start + 1
@@ -351,7 +359,7 @@ for i in range(0,ntgts):
 
 range_to_edge_id = target_to_source.create_dataset("range_to_edge_id", (nedges,2), dtype="i")
 for i in range(0,nedges):
-    range_to_edge_id[i] = 0, 1
+    range_to_edge_id[i] = i, i+1
 
 ##################################################################################
 f0.close()

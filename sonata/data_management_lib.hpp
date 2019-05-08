@@ -22,8 +22,13 @@ using arb::segment_location;
 
 class database {
 public:
-    database(hdf5_record nodes, hdf5_record edges, csv_record node_types, csv_record edge_types, spike_info spikes, current_clamp_info current_clamp):
-            nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types), spikes_(spikes) {
+    database(hdf5_record nodes,
+             hdf5_record edges,
+             csv_record node_types,
+             csv_record edge_types,
+             std::vector<spike_info> spikes,
+             std::vector<current_clamp_info> current_clamp):
+    nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types), spikes_(spikes) {
         build_current_clamp_map(current_clamp);
     }
 
@@ -35,7 +40,7 @@ public:
     }
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
 
-    void build_current_clamp_map(current_clamp_info current);
+    void build_current_clamp_map(std::vector<current_clamp_info> current);
 
     void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
 
@@ -136,7 +141,7 @@ private:
     csv_record edge_types_;
 
     std::unordered_map<cell_gid_type, std::vector<current_clamp>> current_clamps_;
-    spike_info spikes_;
+    std::vector<spike_info> spikes_;
 
     std::unordered_map<cell_gid_type, std::vector<source_type>> source_maps_;
     std::unordered_map<cell_gid_type, std::vector<std::pair<target_type, unsigned>>> target_maps_;
