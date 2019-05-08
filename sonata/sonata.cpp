@@ -46,14 +46,15 @@ void write_trace_json(const arb::trace_data<double>& trace);
 class sonata_recipe: public arb::recipe {
 public:
     sonata_recipe(sonata_params params):
-            database_(params.network.nodes, params.network.edges, params.network.nodes_types, params.network.edges_types, params.spikes.data, params.spikes.population),
+            database_(params.network.nodes,
+                      params.network.edges,
+                      params.network.nodes_types,
+                      params.network.edges_types,
+                      params.spikes,
+                      params.current_clamp),
             run_params_(params.run),
             sim_cond_(params.conditions),
-            num_cells_(database_.num_cells())
-    {
-        std::lock_guard<std::mutex> l(mtx_);
-        database_.build_current_stim_map(params.stimuli.stim_params, params.stimuli.stim_loc);
-    }
+            num_cells_(database_.num_cells()) {}
 
     cell_size_type num_cells() const override {
         return num_cells_;
@@ -82,7 +83,7 @@ public:
 
             auto cell = dummy_cell(morph, mechs, src_types, tgt_types);
 
-            auto stims = database_.get_current_stims(gid);
+            auto stims = database_.get_current_clamps(gid);
             for (auto s: stims) {
                 arb::i_clamp stim(s.delay, s.duration, s.amplitude);
                 cell.add_stimulus(s.stim_loc, stim);
@@ -90,7 +91,7 @@ public:
 
             return cell;
         }
-        else {
+        else if (get_cell_kind(gid) == cell_kind::spike_source) {
             std::lock_guard<std::mutex> l(mtx_);
             std::vector<double> time_sequence = database_.get_spikes(gid);
             return arb::util::unique_any(arb::spike_source_cell{arb::explicit_schedule(time_sequence)});

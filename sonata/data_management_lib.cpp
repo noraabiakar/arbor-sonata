@@ -10,34 +10,7 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
-inline bool operator==(const source_type& lhs, const source_type& rhs) {
-    return lhs.segment   == rhs.segment && lhs.position  == rhs.position;
-}
-
-inline bool operator==(const target_type& lhs, const target_type& rhs) {
-    return lhs.position == rhs.position && lhs.segment == rhs.segment && lhs.synapse == rhs.synapse;
-}
-
-bool operator==(const arb::mechanism_desc &lhs, const arb::mechanism_desc &rhs)
-{
-    return lhs.name() == rhs.name() && lhs.values() == rhs.values();
-}
-
-namespace std {
-    template<> struct hash<source_type>
-    {
-        std::size_t operator()(const source_type& s) const noexcept
-        {
-            std::size_t const h1(std::hash<unsigned>{}(s.segment));
-            std::size_t const h2(std::hash<double>{}(s.position));
-            return h1 ^ (h2 << 1);
-        }
-    };
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void database::build_current_stim_map(csv_file stim_params, csv_file stim_loc) {
+void database::build_current_clamp_map(current_clamp_info current) {
 
     struct param_info {
         double dur;
@@ -55,7 +28,7 @@ void database::build_current_stim_map(csv_file stim_params, csv_file stim_loc) {
     std::unordered_map<unsigned, param_info> param_map;
     std::unordered_map<unsigned, loc_info> loc_map;
 
-    auto stim_param_data = stim_params.get_data();
+    auto stim_param_data = current.stim_params.get_data();
     auto stim_param_cols = stim_param_data.front();
 
     for(auto it = stim_param_data.begin()+1; it < stim_param_data.end(); it++) {
@@ -79,7 +52,7 @@ void database::build_current_stim_map(csv_file stim_params, csv_file stim_loc) {
         loc_map[id] = loc;
     }
 
-    auto stim_loc_data = stim_loc.get_data();
+    auto stim_loc_data = current.stim_loc.get_data();
     auto stim_loc_cols = stim_loc_data.front();
 
     for(auto it = stim_loc_data.begin()+1; it < stim_loc_data.end(); it++) {
@@ -108,7 +81,7 @@ void database::build_current_stim_map(csv_file stim_params, csv_file stim_loc) {
             auto local_loc = i.second;
             auto global_gid = globalize_cell({local_loc.gid, nodes_.map()[local_loc.population]});
 
-            current_stims_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
+            current_clamps_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
         }
         else {
             throw sonata_exception("Electrode id has no corresponding input description");

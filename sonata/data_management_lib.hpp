@@ -11,6 +11,7 @@
 #include "include/hdf5_lib.hpp"
 #include "include/csv_lib.hpp"
 #include "include/sonata_excpetions.hpp"
+#include "include/common_structs.hpp"
 
 
 using arb::cell_gid_type;
@@ -19,47 +20,12 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
-struct current_stim {
-    double duration;
-    double amplitude;
-    double delay;
-    arb::segment_location stim_loc;
-
-    current_stim(double dur, double amp, double del, arb::segment_location loc):
-            duration(dur), amplitude(amp), delay(del), stim_loc(loc){}
-};
-
-struct spike_info {
-    h5_wrapper data;
-    std::string population;
-};
-
-struct source_type {
-    cell_lid_type segment;
-    double position;
-
-    source_type(): segment(0), position(0) {}
-    source_type(cell_lid_type s, double p) : segment(s), position(p) {}
-};
-
-bool operator==(const arb::mechanism_desc &lhs, const arb::mechanism_desc &rhs);
-
-struct target_type {
-    cell_lid_type segment;
-    double position;
-    arb::mechanism_desc synapse;
-
-    target_type(cell_lid_type s, double p, arb::mechanism_desc m) : segment(s), position(p), synapse(m) {}
-
-    bool operator==(const target_type& rhs) {
-        return (position == rhs.position) && (segment == rhs.segment) && (synapse == rhs.synapse);
-    }
-};
-
 class database {
 public:
-    database(hdf5_record nodes, hdf5_record edges, csv_record node_types, csv_record edge_types, h5_wrapper spikes, std::string population):
-            nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types), spikes_{spikes, population} {}
+    database(hdf5_record nodes, hdf5_record edges, csv_record node_types, csv_record edge_types, spike_info spikes, current_clamp_info current_clamp):
+            nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types), spikes_(spikes) {
+        build_current_clamp_map(current_clamp);
+    }
 
     cell_size_type num_cells() {
         return nodes_.num_elements();
@@ -69,7 +35,7 @@ public:
     }
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
 
-    void build_current_stim_map(csv_file stim_params, csv_file stim_loc);
+    void build_current_clamp_map(current_clamp_info current);
 
     void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
 
@@ -77,9 +43,9 @@ public:
                                  std::vector<segment_location>& src,
                                  std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt);
 
-    std::vector<current_stim> get_current_stims(cell_gid_type gid) {
-        if (current_stims_.find(gid) != current_stims_.end()) {
-            return current_stims_.at(gid);
+    std::vector<current_clamp> get_current_clamps(cell_gid_type gid) {
+        if (current_clamps_.find(gid) != current_clamps_.end()) {
+            return current_clamps_.at(gid);
         }
         return {};
     };
@@ -169,7 +135,7 @@ private:
     csv_record node_types_;
     csv_record edge_types_;
 
-    std::unordered_map<cell_gid_type, std::vector<current_stim>> current_stims_;
+    std::unordered_map<cell_gid_type, std::vector<current_clamp>> current_clamps_;
     spike_info spikes_;
 
     std::unordered_map<cell_gid_type, std::vector<source_type>> source_maps_;

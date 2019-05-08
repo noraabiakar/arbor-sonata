@@ -45,24 +45,15 @@ struct run_params {
     double threshold;
 };
 
-struct current_clamp {
-    csv_file stim_params;
-    csv_file stim_loc;
-};
-
-struct spike_record {
-    h5_wrapper data;
-    std::string population;
-};
-
 struct sonata_params {
     network_params network;
     sim_conditions conditions;
     run_params run;
-    current_clamp stimuli;
-    spike_record spikes;
-    sonata_params(const network_params& n, const sim_conditions& s, const run_params& r, const current_clamp& stim, const spike_record& sp):
-    network(n), conditions(s), run(r), stimuli(stim), spikes(sp) {}
+    current_clamp_info current_clamp;
+    spike_info spikes;
+
+    sonata_params(const network_params& n, const sim_conditions& s, const run_params& r, const current_clamp_info& stim, const spike_info& sp):
+    network(n), conditions(s), run(r), current_clamp(stim), spikes(sp) {}
 };
 
 network_params read_network_params(nlohmann::json network_json) {
@@ -138,7 +129,7 @@ run_params read_run_params(nlohmann::json run_json) {
     return run;
 }
 
-current_clamp read_stimuli(std::unordered_map<std::string, nlohmann::json>& stim_json) {
+current_clamp_info read_stimuli(std::unordered_map<std::string, nlohmann::json>& stim_json) {
     using sup::param_from_json;
 
     for (auto input: stim_json) {
@@ -150,7 +141,7 @@ current_clamp read_stimuli(std::unordered_map<std::string, nlohmann::json>& stim
     }
 }
 
-spike_record read_spikes(std::unordered_map<std::string, nlohmann::json>& spike_json, std::string node_set_file) {
+spike_info read_spikes(std::unordered_map<std::string, nlohmann::json>& spike_json, std::string node_set_file) {
     using sup::param_from_json;
 
     for (auto input: spike_json) {
