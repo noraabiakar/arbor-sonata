@@ -239,7 +239,42 @@ sonata_params read_options(int argc, char** argv) {
     return params;
 }
 
-void write_spikes(std::string file_name, std::vector<arb::spike> spikes, std::vector<std::string> pop_names, std::vector<int> pop_part) {
+void write_spikes(std::vector<arb::spike> spikes, bool sort_by_time, std::string file_name, const network_params& network) {
+    //Sort spikes by gid
+    std::sort(spikes.begin(), spikes.end(), [](const arb::spike& a, const arb::spike& b) -> bool
+    {
+        return a.source < b.source;
+    });
+
+    //Get population names and cumulative node_counts
+    std::vector<std::string> pop_names;
+
+    std::vector<int> nodes_size = {0};
+    for (unsigned i = 0; i < network.nodes.populations().size(); i++) {
+        pop_names.push_back(network.nodes[i].name());
+        nodes_size.push_back(nodes_size.back() + network.nodes[i].dataset_size("node_type_id"));
+    }
+
+    //Split by population
+    std::vector<int> pop_part = {0};
+    for (unsigned i = 1; i < nodes_size.size(); i++) {
+        auto it = std::lower_bound(spikes.begin(), spikes.end(), nodes_size[i], [](const arb::spike& a, unsigned b) -> bool
+        {
+            return a.source.gid < b;
+        });
+        pop_part.push_back(it - spikes.begin());
+    }
+
+    //If we need to sort by time, sort by partition
+    if (sort_by_time) {
+        for (unsigned i = 1; i < pop_part.size(); i++){
+            std::sort(spikes.begin() + pop_part[i-1], spikes.begin() + pop_part[i],
+                      [](const arb::spike& a, const arb::spike& b) -> bool
+                      {
+                          return a.time < b.time;
+                      });
+        }
+    }
 
     auto file = H5Fcreate (file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     auto group = H5Gcreate (file, "spikes", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);

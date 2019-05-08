@@ -239,42 +239,7 @@ int main(int argc, char **argv)
         // Write spikes to file
         if (root) {
             std::cout << "\n" << ns << " spikes generated \n";
-            //Sort spikes by gid
-            std::sort(recorded_spikes.begin(), recorded_spikes.end(), [](const arb::spike& a, const arb::spike& b) -> bool
-                    {
-                        return a.source < b.source;
-                    });
-
-            //Get population names and cumulative node_counts
-            std::vector<std::string> pop_name;
-
-            std::vector<int> nodes_size = {0};
-            for (unsigned i = 0; i < params.network.nodes.populations().size(); i++) {
-                pop_name.push_back(params.network.nodes[i].name());
-                nodes_size.push_back(nodes_size.back() + params.network.nodes[i].dataset_size("node_type_id"));
-            }
-
-            //Split by population
-            std::vector<int> pop_partitions = {0};
-            for (unsigned i = 1; i < nodes_size.size(); i++) {
-                auto it = std::lower_bound(recorded_spikes.begin(), recorded_spikes.end(), nodes_size[i], [](const arb::spike& a, unsigned b) -> bool
-                        {
-                                return a.source.gid < b;
-                        });
-                pop_partitions.push_back(it - recorded_spikes.begin());
-            }
-
-            //If we need to sort by time, sort by partition
-            if (params.spike_output.sort_by == "time") {
-                for (unsigned i = 1; i < pop_partitions.size(); i++){
-                    std::sort(recorded_spikes.begin() + pop_partitions[i-1], recorded_spikes.begin() + pop_partitions[i],
-                            [](const arb::spike& a, const arb::spike& b) -> bool
-                            {
-                                return a.time < b.time;
-                            });
-                }
-            }
-            write_spikes(params.spike_output.file_name, recorded_spikes, pop_name, pop_partitions);
+            write_spikes(recorded_spikes, params.spike_output.sort_by == "time", params.spike_output.file_name, params.network);
         }
 
         // Write the samples to a json file.
