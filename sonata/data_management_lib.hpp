@@ -32,6 +32,26 @@ public:
         build_current_clamp_map(current_clamp);
     }
 
+    cell_size_type population_count(std::string pop) {
+        nodes_[pop].dataset_size("node_type_id");
+    }
+
+    std::string population_of(cell_gid_type gid) {
+        for (unsigned i = 0; i < nodes_.partitions().size(); i++) {
+            if (gid < nodes_.partitions()[i]) {
+                return nodes_.populations()[i-1].name();
+            }
+        }
+    }
+
+    unsigned population_id_of(cell_gid_type gid) {
+        for (unsigned i = 0; i < nodes_.partitions().size(); i++) {
+            if (gid < nodes_.partitions()[i]) {
+                return gid - nodes_.partitions()[i-1];
+            }
+        }
+    }
+
     cell_size_type num_cells() {
         return nodes_.num_elements();
     }

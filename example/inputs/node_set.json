@@ -3,7 +3,13 @@
     "population": "pop_ext"
   },
 
-  "recorded_cells":{
-    "gids": [0, 100, 200, 300, 400]
+  "recorded_cells_e": {
+    "population": "pop_e",
+    "ids": [0, 100, 200, 300]
+  },
+
+  "recorded_cells_i": {
+    "population": "pop_i",
+    "ids": [0]
   }
 }

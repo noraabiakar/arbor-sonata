@@ -50,10 +50,11 @@ public:
                       params.network.edges,
                       params.network.nodes_types,
                       params.network.edges_types,
-                      params.spikes,
+                      params.spikes_input,
                       params.current_clamps),
             run_params_(params.run),
             sim_cond_(params.conditions),
+            probe_info_(params.probes_info),
             num_cells_(database_.num_cells()) {}
 
     cell_size_type num_cells() const override {
@@ -128,16 +129,70 @@ public:
     }
 
     cell_size_type num_probes(cell_gid_type gid)  const override {
-        return 1;
+        std::lock_guard<std::mutex> l(mtx_);
+        std::string population = database_.population_of(gid);
+
+        unsigned sum = 0;
+        for (auto p: probe_info_) {
+            if (population == p.population) {
+                if (!p.node_ids.empty()) {
+                    sum++;
+                } else {
+                    if (std::binary_search(p.node_ids.begin(), p.node_ids.end(), database_.population_id_of(gid))) {
+                        sum++;
+                    }
+                }
+            }
+        }
+        return sum;
     }
 
     arb::probe_info get_probe(cell_member_type id) const override {
-        // Get the appropriate kind for measuring voltage.
-        cell_probe_address::probe_kind kind = cell_probe_address::membrane_voltage;
-        // Measure at the soma.
-        arb::segment_location loc(0, 0.01);
+        std::lock_guard<std::mutex> l(mtx_);
+        std::string population = database_.population_of(id.gid);
 
-        return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
+        unsigned loc = 0;
+        for (auto p: probe_info_) {
+            if (population == p.population) {
+                if (!p.node_ids.empty()) {
+                    if (loc == id.index) {
+                        // Get the appropriate kind for measuring voltage.
+                        cell_probe_address::probe_kind kind;
+                        if (p.kind == "v") {
+                            kind = cell_probe_address::membrane_voltage;
+                        } else if (p.kind == "i") {
+                            kind = cell_probe_address::membrane_current;
+                        } else {
+                            throw sonata_exception("Probe kind not supported");
+                        }
+                        // Measure at the soma.
+                        arb::segment_location loc(p.sec_id, p.sec_pos);
+
+                        return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
+                    }
+                    loc++;
+                } else {
+                    if (std::binary_search(p.node_ids.begin(), p.node_ids.end(), database_.population_id_of(id.gid))) {
+                        if (loc == id.index) {
+                            // Get the appropriate kind for measuring voltage.
+                            cell_probe_address::probe_kind kind;
+                            if (p.kind == "v") {
+                                kind = cell_probe_address::membrane_voltage;
+                            } else if (p.kind == "i") {
+                                kind = cell_probe_address::membrane_current;
+                            } else {
+                                throw sonata_exception("Probe kind not supported");
+                            }
+                            // Measure at the soma.
+                            arb::segment_location loc(p.sec_id, p.sec_pos);
+
+                            return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
+                        }
+                        loc++;
+                    }
+                }
+            }
+        }
     }
 
     arb::util::any get_global_properties(cell_kind k) const override {
@@ -153,6 +208,7 @@ private:
 
     run_params run_params_;
     sim_conditions sim_cond_;
+    std::vector<probe_info> probe_info_;
 
     cell_size_type num_cells_;
 };

@@ -32,5 +32,23 @@
   "outputs": {
     "spikes_file": "output_spikes.h5",
     "spikes_sort_order": "time"
-  }
+  },
+
+  "reports": {
+  "membrane_potential": {
+    "node_set": "recorded_cells_e",
+    "variable_name": "v",
+    "report_file": "voltage_report.h5",
+    "section_id": 0,
+    "section_pos": 0.5
+  },
+
+  "membrane_current": {
+    "node_set": "recorded_cells_i",
+    "variable_name": "i",
+    "report_file": "current_report.h5",
+    "section_id": 0,
+    "section_pos": 0.4}
+}
+
 }

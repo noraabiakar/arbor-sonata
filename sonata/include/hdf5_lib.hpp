@@ -567,6 +567,10 @@ public:
         return num_elements_;
     }
 
+    h5_wrapper operator [](std::string i) const {
+        return populations_[map_.at(i)];
+    }
+
     h5_wrapper operator [](int i) const {
         return populations_[i];
     }

@@ -19,7 +19,7 @@ pop_e_i = edges3.create_group("pop_e_i")
 pop_ext_e = edges4.create_group("pop_ext_e")
 
 #################################################################################
-nedges = 8000
+nedges = 800000
 ntgts = 400
 nsrcs = 400
 s2t_ratio = nsrcs//ntgts #1
@@ -87,7 +87,7 @@ for i in range(0,nedges):
     efferent_pos[i] = 0.9
 
 ##################################################################################
-nedges = 2000
+nedges = 200000
 ntgts = 400
 nsrcs = 100
 t2s_ratio = ntgts//nsrcs #4
@@ -157,7 +157,7 @@ for i in range(0,nedges):
     efferent_pos[i] = 0.9
 
 ##################################################################################
-nedges = 500
+nedges = 50000
 ntgts = 100
 nsrcs = 100
 s2t_ratio = nsrcs//ntgts #1
@@ -226,7 +226,7 @@ for i in range(0,nedges):
     efferent_pos[i] = 0.9
 
 ####################################### NOT PARAMETRIZABLE ##################################
-nedges = 2000
+nedges = 200000
 ntgts = 100
 nsrcs = 400
 s2t_ratio = nsrcs//ntgts #4
