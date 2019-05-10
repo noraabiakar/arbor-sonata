@@ -41,7 +41,7 @@ arb::cable_cell dummy_cell(
         std::vector<std::pair<arb::segment_location, double>>,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>>);
 
-void write_trace_json(const arb::trace_data<double>& trace);
+void write_trace_json(const std::unordered_map<cell_member_type, arb::trace_data<double>>& trace, unsigned rank);
 
 class sonata_recipe: public arb::recipe {
 public:
@@ -135,7 +135,7 @@ public:
         unsigned sum = 0;
         for (auto p: probe_info_) {
             if (population == p.population) {
-                if (!p.node_ids.empty()) {
+                if (p.node_ids.empty()) {
                     sum++;
                 } else {
                     if (std::binary_search(p.node_ids.begin(), p.node_ids.end(), database_.population_id_of(gid))) {
@@ -261,16 +261,19 @@ int main(int argc, char **argv)
         // Construct the model.
         arb::simulation sim(recipe, decomp, context);
 
-        // Set up the probe that will measure voltage in the cell.
-
-        // The id of the only probe on the cell: the cell_member type points to (cell 0, probe 0)
-        auto probe_id = cell_member_type{421, 0};
-        // The schedule for sampling is 10 samples every 1 ms.
+        // Set up the probes that will measure voltages in the cells.
+        std::unordered_map<cell_member_type, arb::trace_data<double>> voltages;
         auto sched = arb::regular_schedule(0.1);
-        // This is where the voltage samples will be stored as (time, value) pairs
-        arb::trace_data<double> voltage;
-        // Now attach the sampler at probe_id, with sampling schedule sched, writing to voltage
-        sim.add_sampler(arb::one_probe(probe_id), sched, arb::make_simple_sampler(voltage));
+
+        for (auto g : decomp.groups) {
+            for (auto i : g.gids) {
+                auto num_probes = recipe.num_probes(i);
+                for (unsigned j = 0; j < num_probes; j++) {
+                    auto probe = recipe.get_probe({i, j});
+                    sim.add_sampler(arb::one_probe(probe.id), sched, arb::make_simple_sampler(voltages[{i,j}]));
+                }
+            }
+        }
 
         // Set up recording of spikes to a vector on the root process.
         std::vector<arb::spike> recorded_spikes;
@@ -299,7 +302,7 @@ int main(int argc, char **argv)
         }
 
         // Write the samples to a json file.
-        if (root) write_trace_json(voltage);
+        if (root) write_trace_json(voltages, root);
 
         auto report = arb::profile::make_meter_report(meters, context);
         std::cout << report;
@@ -362,24 +365,29 @@ arb::cable_cell dummy_cell(
     return cell;
 }
 
+void write_trace_json(const std::unordered_map<cell_member_type, arb::trace_data<double>>& trace, unsigned rank) {
+    unsigned i = 0;
+    for (auto t: trace) {
+        std::string path = "./voltages_" + std::to_string(rank) +
+                           "_" + std::to_string(i) + ".json";
 
-void write_trace_json(const arb::trace_data<double>& trace) {
-    std::string path = "./voltages.json";
+        nlohmann::json json;
+        json["name"] = "gj demo: cell " + std::to_string(i);
+        json["units"] = "mV";
+        json["cell"] = std::to_string(i);
+        json["group"] = std::to_string(rank);
+        json["probe"] = "0";
 
-    nlohmann::json json;
-    json["name"] = "ring demo";
-    json["units"] = "mV";
-    json["cell"] = "0.0";
-    json["probe"] = "0";
+        auto &jt = json["data"]["time"];
+        auto &jy = json["data"]["voltage"];
 
-    auto& jt = json["data"]["time"];
-    auto& jy = json["data"]["voltage"];
+        for (const auto &sample: t.second) {
+            jt.push_back(sample.t);
+            jy.push_back(sample.v);
+        }
 
-    for (const auto& sample: trace) {
-        jt.push_back(sample.t);
-        jy.push_back(sample.v);
+        std::ofstream file(path);
+        file << std::setw(1) << json << "\n";
+        i++;
     }
-
-    std::ofstream file(path);
-    file << std::setw(1) << json << "\n";
 }
