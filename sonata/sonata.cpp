@@ -41,8 +41,6 @@ arb::cable_cell dummy_cell(
         std::vector<std::pair<arb::segment_location, double>>,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>>);
 
-void write_trace_json(const std::unordered_map<cell_member_type, arb::trace_data<double>>& trace, unsigned rank);
-
 class sonata_recipe: public arb::recipe {
 public:
     sonata_recipe(sonata_params params):
@@ -168,6 +166,7 @@ public:
                         // Measure at the soma.
                         arb::segment_location loc(p.sec_id, p.sec_pos);
 
+                        probe_files_[id] = p.file_name;
                         return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
                     }
                     loc++;
@@ -186,6 +185,7 @@ public:
                             // Measure at the soma.
                             arb::segment_location loc(p.sec_id, p.sec_pos);
 
+                            probe_files_[id] = p.file_name;
                             return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
                         }
                         loc++;
@@ -202,6 +202,10 @@ public:
         return a;
     }
 
+    std::string get_probe_file(cell_member_type id) const {
+        return probe_files_[id];
+    }
+
 private:
     mutable std::mutex mtx_;
     mutable database database_;
@@ -210,6 +214,7 @@ private:
     sim_conditions sim_cond_;
     std::vector<probe_info> probe_info_;
 
+    mutable std::unordered_map<cell_member_type, std::string> probe_files_;
     cell_size_type num_cells_;
 };
 
@@ -262,15 +267,26 @@ int main(int argc, char **argv)
         arb::simulation sim(recipe, decomp, context);
 
         // Set up the probes that will measure voltages in the cells.
-        std::unordered_map<cell_member_type, arb::trace_data<double>> voltages;
+        std::unordered_map<cell_member_type, trace_info> traces;
+        std::unordered_map<std::string, std::vector<cell_member_type>> trace_groups;
         auto sched = arb::regular_schedule(0.1);
 
         for (auto g : decomp.groups) {
             for (auto i : g.gids) {
                 auto num_probes = recipe.num_probes(i);
                 for (unsigned j = 0; j < num_probes; j++) {
-                    auto probe = recipe.get_probe({i, j});
-                    sim.add_sampler(arb::one_probe(probe.id), sched, arb::make_simple_sampler(voltages[{i,j}]));
+                    auto probe = recipe.get_probe({i,j});
+                    auto probe_address = arb::util::any_cast<cell_probe_address>(probe.address);
+
+                    trace_info t;
+
+                    t.is_voltage = probe_address.kind == cell_probe_address::membrane_voltage;
+                    t.seg_id = probe_address.location.segment;
+                    t.seg_pos = probe_address.location.position;
+
+                    trace_groups[recipe.get_probe_file({i,j})].push_back({i,j});
+                    traces[{i, j}] = t;
+                    sim.add_sampler(arb::one_probe({i, j}), sched, arb::make_simple_sampler(traces[{i, j}].data));
                 }
             }
         }
@@ -302,7 +318,7 @@ int main(int argc, char **argv)
         }
 
         // Write the samples to a json file.
-        if (root) write_trace_json(voltages, root);
+        if (root) write_trace(traces, trace_groups, params.network);
 
         auto report = arb::profile::make_meter_report(meters, context);
         std::cout << report;
@@ -363,31 +379,4 @@ arb::cable_cell dummy_cell(
     }
 
     return cell;
-}
-
-void write_trace_json(const std::unordered_map<cell_member_type, arb::trace_data<double>>& trace, unsigned rank) {
-    unsigned i = 0;
-    for (auto t: trace) {
-        std::string path = "./voltages_" + std::to_string(rank) +
-                           "_" + std::to_string(i) + ".json";
-
-        nlohmann::json json;
-        json["name"] = "gj demo: cell " + std::to_string(i);
-        json["units"] = "mV";
-        json["cell"] = std::to_string(i);
-        json["group"] = std::to_string(rank);
-        json["probe"] = "0";
-
-        auto &jt = json["data"]["time"];
-        auto &jy = json["data"]["voltage"];
-
-        for (const auto &sample: t.second) {
-            jt.push_back(sample.t);
-            jy.push_back(sample.v);
-        }
-
-        std::ofstream file(path);
-        file << std::setw(1) << json << "\n";
-        i++;
-    }
 }

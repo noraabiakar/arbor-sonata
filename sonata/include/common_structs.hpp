@@ -2,6 +2,7 @@
 
 #include <arbor/common_types.hpp>
 #include <arbor/cable_cell.hpp>
+#include <arbor/simple_sampler.hpp>
 
 #include <string>
 
@@ -57,6 +58,15 @@ inline bool operator==(const target_type& lhs, const target_type& rhs) {
            lhs.synapse.name() == rhs.synapse.name() &&
            lhs.synapse.values() == rhs.synapse.values();
 }
+
+struct trace_info {
+    bool is_voltage;
+    cell_lid_type seg_id;
+    double seg_pos;
+
+    arb::trace_data<double> data;
+};
+
 
 namespace std {
     template<> struct hash<source_type>

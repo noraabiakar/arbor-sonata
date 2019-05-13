@@ -306,16 +306,16 @@ void write_spikes(std::vector<arb::spike> spikes, bool sort_by_time, std::string
     //Get population names and cumulative node_counts
     std::vector<std::string> pop_names;
 
-    std::vector<int> nodes_size = {0};
+    std::vector<int> pop_sizes = {0};
     for (unsigned i = 0; i < network.nodes.populations().size(); i++) {
         pop_names.push_back(network.nodes[i].name());
-        nodes_size.push_back(nodes_size.back() + network.nodes[i].dataset_size("node_type_id"));
+        pop_sizes.push_back(pop_sizes.back() + network.nodes[i].dataset_size("node_type_id"));
     }
 
     //Split by population
     std::vector<int> pop_part = {0};
-    for (unsigned i = 1; i < nodes_size.size(); i++) {
-        auto it = std::lower_bound(spikes.begin(), spikes.end(), nodes_size[i], [](const arb::spike& a, unsigned b) -> bool
+    for (unsigned i = 1; i < pop_sizes.size(); i++) {
+        auto it = std::lower_bound(spikes.begin(), spikes.end(), pop_sizes[i], [](const arb::spike& a, unsigned b) -> bool
         {
             return a.source.gid < b;
         });
@@ -341,7 +341,7 @@ void write_spikes(std::vector<arb::spike> spikes, bool sort_by_time, std::string
         std::string full_dset_gid_name = full_group_name + "/node_ids";
         std::string full_dset_time_name = full_group_name + "/timestamps";
 
-        auto pop_group = H5Gcreate (file, full_group_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        auto pop_group = H5Gcreate(file, full_group_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         hsize_t size = pop_part[p+1] - pop_part[p];
 
@@ -349,7 +349,7 @@ void write_spikes(std::vector<arb::spike> spikes, bool sort_by_time, std::string
         double spike_times[size];
 
         for (unsigned i = pop_part[p]; i < pop_part[p+1]; i++) {
-            spike_gids[i - pop_part[p]] = spikes[i].source.gid;
+            spike_gids[i - pop_part[p]] = spikes[i].source.gid - pop_sizes[p];
             spike_times[i - pop_part[p]] = spikes[i].time;
         }
 
@@ -367,5 +367,161 @@ void write_spikes(std::vector<arb::spike> spikes, bool sort_by_time, std::string
     }
     H5Gclose (group);
     H5Fclose (file);
+}
+
+void write_trace(const std::unordered_map<cell_member_type, trace_info>& trace,
+                 const std::unordered_map<std::string, std::vector<cell_member_type>>& trace_groups,
+                 const network_params& network) {
+
+    for (auto t: trace_groups) {
+        std::string file_name = t.first;
+        auto traced_probes = t.second;
+
+        //Sort traced_probes by gid
+        std::sort(traced_probes.begin(), traced_probes.end(), [](const arb::cell_member_type& a, const arb::cell_member_type& b) -> bool
+        {
+            return a.gid < b.gid;
+        });
+
+        //Get population names and cumulative node_counts
+        std::vector<std::string> pop_names;
+
+        std::vector<int> pop_sizes = {0};
+        for (unsigned i = 0; i < network.nodes.populations().size(); i++) {
+            pop_names.push_back(network.nodes[i].name());
+            pop_sizes.push_back(pop_sizes.back() + network.nodes[i].dataset_size("node_type_id"));
+        }
+
+        //Split by population
+        std::vector<int> pop_part = {0};
+        for (unsigned i = 1; i < pop_sizes.size(); i++) {
+            auto it = std::lower_bound(traced_probes.begin(), traced_probes.end(), pop_sizes[i], [](const arb::cell_member_type& a, unsigned b) -> bool
+            {
+                return a.gid < b;
+            });
+            pop_part.push_back(it - traced_probes.begin());
+        }
+
+        auto file = H5Fcreate(file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+        auto group = H5Gcreate(file, "reports", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+        for (unsigned p = 0; p < pop_names.size(); p++) {
+            if (pop_part[p+1] > pop_part[p]) {
+                std::string full_group_name = "/reports/" + pop_names[p];
+                std::string full_mapping_group = full_group_name + "/mapping";
+
+                auto pop_group = H5Gcreate(file, full_group_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                auto mapping_group = H5Gcreate (file, full_mapping_group.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+                hsize_t num_traces = pop_part[p+1] - pop_part[p];
+                hsize_t size_trace = trace.at(traced_probes.front()).data.size();
+
+                hsize_t dims_data[2] = {num_traces, size_trace};
+                hsize_t dims_time[1] = {size_trace};
+                hsize_t dims_values[1] = {num_traces};
+
+                double trace_data[num_traces][size_trace];
+                double trace_time[size_trace];
+                unsigned seg_id[num_traces];
+                double seg_pos[num_traces];
+
+                std::vector<unsigned> unique_gids;
+                std::vector<unsigned> gid_parts = {0};
+
+                unsigned i;
+                for (i = pop_part[p]; i < pop_part[p+1]; i++) {
+                    auto& info = trace.at(traced_probes[i]);
+                    for (unsigned j = 0; j < info.data.size(); j++) {
+                        trace_data[i - pop_part[p]][j] = info.data[j].v;
+                    }
+                    seg_id[i - pop_part[p]] = info.seg_id;
+                    seg_pos[i - pop_part[p]] = info.seg_pos;
+
+                    if (i > pop_part[p]) {
+                        if (traced_probes[i].gid != traced_probes[i-1].gid) {
+                            gid_parts.push_back(i);
+                            unique_gids.push_back(traced_probes[i-1].gid - pop_sizes[p]);
+                        }
+                    }
+                }
+                gid_parts.push_back(i);
+                unique_gids.push_back(traced_probes[i-1].gid - pop_sizes[p]);
+
+                auto& info = trace.at(traced_probes[pop_part[p]]);
+                for (unsigned j = 0; j < info.data.size(); j++) {
+                    trace_time[j] = info.data[j].t;
+                }
+
+                //Write values
+                std::string full_dset_data_name = full_group_name + "/data";
+                auto space = H5Screate_simple(2, dims_data, NULL);
+                auto dataset = H5Dcreate(file, full_dset_data_name.c_str(), H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                auto status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, trace_data);
+
+                H5Dclose (dataset);
+                H5Sclose (space);
+
+                //Write times
+                std::string full_dset_time_name = full_mapping_group + "/time";
+                space = H5Screate_simple(1, dims_time, NULL);
+                dataset = H5Dcreate(file, full_dset_time_name.c_str(), H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, trace_time);
+
+                H5Dclose (dataset);
+                H5Sclose (space);
+
+                //Write seg_ids
+                std::string full_dset_id_name = full_mapping_group + "/element_ids";
+                space = H5Screate_simple(1, dims_values, NULL);
+                dataset = H5Dcreate(file, full_dset_id_name.c_str(), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                status = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, seg_id);
+
+                H5Dclose (dataset);
+                H5Sclose (space);
+
+                //Write seg_pos
+                std::string full_dset_pos_name = full_mapping_group + "/element_pos";
+                space = H5Screate_simple(1, dims_values, NULL);
+                dataset = H5Dcreate(file, full_dset_pos_name.c_str(), H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, seg_pos);
+
+                H5Dclose (dataset);
+                H5Sclose (space);
+
+                hsize_t dims_nodes[1] = {unique_gids.size()};
+                hsize_t dims_idx[1] = {gid_parts.size()};
+
+                unsigned nodes[unique_gids.size()];
+                unsigned indices[gid_parts.size()];
+
+                std::copy(unique_gids.begin(), unique_gids.end(), nodes);
+                std::copy(gid_parts.begin(), gid_parts.end(), indices);
+
+                //Write node_ids
+                std::string full_dset_node_name = full_mapping_group + "/node_ids";
+                space = H5Screate_simple(1, dims_nodes, NULL);
+                dataset = H5Dcreate(file, full_dset_node_name.c_str(), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                status = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, nodes);
+
+                H5Dclose (dataset);
+                H5Sclose (space);
+
+                //Write index_pointers
+                std::string full_dset_idx_name = full_mapping_group + "/index_pointers";
+                space = H5Screate_simple(1, dims_idx, NULL);
+                dataset = H5Dcreate(file, full_dset_idx_name.c_str(), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                status = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, indices);
+
+                H5Dclose (dataset);
+                H5Sclose (space);
+
+                H5Gclose (mapping_group);
+                H5Gclose (pop_group);
+            }
+        }
+
+        H5Gclose (group);
+        H5Fclose (file);
+    }
 }
 
