@@ -152,7 +152,7 @@ public:
         unsigned loc = 0;
         for (auto p: probe_info_) {
             if (population == p.population) {
-                if (!p.node_ids.empty()) {
+                if (p.node_ids.empty() || std::binary_search(p.node_ids.begin(), p.node_ids.end(), database_.population_id_of(id.gid))) {
                     if (loc == id.index) {
                         // Get the appropriate kind for measuring voltage.
                         cell_probe_address::probe_kind kind;
@@ -163,33 +163,12 @@ public:
                         } else {
                             throw sonata_exception("Probe kind not supported");
                         }
-                        // Measure at the soma.
                         arb::segment_location loc(p.sec_id, p.sec_pos);
 
                         probe_files_[id] = p.file_name;
                         return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
                     }
                     loc++;
-                } else {
-                    if (std::binary_search(p.node_ids.begin(), p.node_ids.end(), database_.population_id_of(id.gid))) {
-                        if (loc == id.index) {
-                            // Get the appropriate kind for measuring voltage.
-                            cell_probe_address::probe_kind kind;
-                            if (p.kind == "v") {
-                                kind = cell_probe_address::membrane_voltage;
-                            } else if (p.kind == "i") {
-                                kind = cell_probe_address::membrane_current;
-                            } else {
-                                throw sonata_exception("Probe kind not supported");
-                            }
-                            // Measure at the soma.
-                            arb::segment_location loc(p.sec_id, p.sec_pos);
-
-                            probe_files_[id] = p.file_name;
-                            return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
-                        }
-                        loc++;
-                    }
                 }
             }
         }
@@ -204,6 +183,14 @@ public:
 
     std::string get_probe_file(cell_member_type id) const {
         return probe_files_[id];
+    }
+
+    std::vector<unsigned> get_pop_partitions() const {
+        return database_.pop_partitions();
+    }
+
+    std::vector<std::string> get_pop_names() const {
+        return database_.pop_names();
     }
 
 private:
@@ -314,11 +301,11 @@ int main(int argc, char **argv)
         // Write spikes to file
         if (root) {
             std::cout << "\n" << ns << " spikes generated \n";
-            write_spikes(recorded_spikes, params.spike_output.sort_by == "time", params.spike_output.file_name, params.network);
+            write_spikes(recorded_spikes, params.spike_output.sort_by == "time", params.spike_output.file_name, recipe.get_pop_names(), recipe.get_pop_partitions());
         }
 
         // Write the samples to a json file.
-        if (root) write_trace(traces, trace_groups, params.network);
+        if (root) write_trace(traces, trace_groups, recipe.get_pop_names(), recipe.get_pop_partitions());
 
         auto report = arb::profile::make_meter_report(meters, context);
         std::cout << report;

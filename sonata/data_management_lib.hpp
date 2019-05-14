@@ -32,8 +32,12 @@ public:
         build_current_clamp_map(current_clamp);
     }
 
-    cell_size_type population_count(std::string pop) {
-        nodes_[pop].dataset_size("node_type_id");
+    std::vector<unsigned> pop_partitions() const {
+        return nodes_.partitions();
+    }
+
+    std::vector<std::string> pop_names() const {
+        return nodes_.pop_names();
     }
 
     std::string population_of(cell_gid_type gid) {

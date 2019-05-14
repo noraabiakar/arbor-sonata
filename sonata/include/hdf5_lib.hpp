@@ -521,6 +521,7 @@ public:
             }
 
             for (auto g: f->top_group_->groups_.front()->groups_) {
+                pop_names_.emplace_back(g->name());
                 map_[g->name()] = idx++;
                 populations_.emplace_back(g);
             }
@@ -579,7 +580,7 @@ public:
         return populations_;
     }
 
-    std::vector<unsigned> partitions() {
+    std::vector<unsigned> partitions() const {
         return partition_;
     }
 
@@ -587,8 +588,13 @@ public:
         return map_;
     }
 
+    std::vector<std::string> pop_names() const {
+        return pop_names_;
+    }
+
 private:
     int num_elements_ = 0;
+    std::vector<std::string> pop_names_;
     std::vector<unsigned> partition_;
     std::vector<h5_wrapper> populations_;
     std::unordered_map<std::string, unsigned> map_;
