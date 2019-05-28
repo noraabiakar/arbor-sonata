@@ -1,0 +1,37 @@
+{
+  "pas_0" : [
+    {
+      "g_pas": 0.002, 
+      "e_pas": -66
+    },
+    [
+      {
+        "mech": "pas",
+        "section":"soma", 
+        "e": -65, 
+        "g": 0
+      },
+      {
+        "mech": "pas",
+        "section":"dend", 
+        "e": "e_pas", 
+        "g": 0.001
+      }
+    ]
+  ],
+  
+  "hh_0" : [
+    {
+      "gl_hh": 0.002, 
+      "el_hh": -70
+    }, 
+    [
+      {
+        "mech" : "hh", 
+        "section": "soma", 
+        "el": "el_hh", 
+        "gl": "gl_hh"
+      }
+    ]
+  ]
+}

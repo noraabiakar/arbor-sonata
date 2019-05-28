@@ -5,10 +5,15 @@
 
 struct sonata_params {
 
-    std::string nodes_hdf5 = "../network/nodes.h5";
-    std::string nodes_csv = "../network/node_types.csv";
-    std::string edges_hdf5 = "../network/edges.h5";
-    std::string edges_csv = "../network/edge_types.csv";
+    std::string nodes_0 = "../../network/nodes_0.h5";
+    std::string nodes_1 = "../../network/nodes_1.h5";
+    std::string nodes_csv = "../../network/node_types.csv";
+
+    std::string edges_0 = "../../network/edges_0.h5";
+    std::string edges_1 = "../../network/edges_1.h5";
+    std::string edges_2 = "../../network/edges_2.h5";
+    std::string edges_3 = "../../network/edges_3.h5";
+    std::string edges_csv = "../../network/edge_types.csv";
 
 };
 
@@ -35,9 +40,13 @@ sonata_params read_options(int argc, char** argv) {
     nlohmann::json json;
     json << f;
 
-    param_from_json(params.nodes_hdf5, "nodes-hdf5", json);
+    param_from_json(params.nodes_0, "nodes-0", json);
+    param_from_json(params.nodes_1, "nodes-1", json);
     param_from_json(params.nodes_csv, "nodes-csv", json);
-    param_from_json(params.edges_hdf5, "edges-hdf5", json);
+    param_from_json(params.edges_0, "edges-0", json);
+    param_from_json(params.edges_1, "edges-1", json);
+    param_from_json(params.edges_2, "edges-2", json);
+    param_from_json(params.edges_3, "edges-3", json);
     param_from_json(params.edges_csv, "edges-csv", json);
 
     if (!json.empty()) {

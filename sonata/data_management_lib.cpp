@@ -1,4 +1,5 @@
-#include "arbor/version.hpp"
+#include <arbor/version.hpp>
+#include <arbor/mechcat.hpp>
 
 #include "data_management_lib.hpp"
 #include "include/mpi_helper.hpp"
@@ -17,6 +18,11 @@ inline bool operator==(const target_type& lhs, const target_type& rhs) {
     return lhs.position == rhs.position && lhs.segment == rhs.segment && lhs.synapse == rhs.synapse;
 }
 
+bool operator==(const arb::mechanism_desc &lhs, const arb::mechanism_desc &rhs)
+{
+    return lhs.name() == rhs.name() && lhs.values() == rhs.values();
+}
+
 namespace std {
     template<> struct hash<source_type>
     {
@@ -25,18 +31,6 @@ namespace std {
             std::size_t const h1(std::hash<unsigned>{}(s.segment));
             std::size_t const h2(std::hash<double>{}(s.position));
             std::size_t const h3(std::hash<double>{}(s.threshold));
-            auto h1_2 = h1 ^ (h2 << 1);
-            return (h1_2 >> 1) ^ (h3 << 1);
-        }
-    };
-
-    template<> struct hash<target_type>
-    {
-        std::size_t operator()(const target_type& s) const noexcept
-        {
-            std::size_t const h1(std::hash<unsigned>{}(s.segment));
-            std::size_t const h2(std::hash<double>{}(s.position));
-            std::size_t const h3(std::hash<std::string>{}(s.synapse));
             auto h1_2 = h1 ^ (h2 << 1);
             return (h1_2 >> 1) ^ (h3 << 1);
         }
@@ -139,7 +133,6 @@ void database::build_source_and_target_maps(const std::vector<arb::group_descrip
 
         source_maps_[glob_source_gids[i]] = std::move(sub_v);
     }
-
 }
 
 void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns) {
@@ -157,7 +150,6 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
 
         for (auto j = n2r_range.first; j< n2r_range.second; j++) {
             auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
-
             auto src_rng = source_range(edge_pop, r2e);
             auto tgt_rng = target_range(edge_pop, r2e);
             auto weights = weight_range(edge_pop, r2e);
@@ -231,8 +223,66 @@ void database::get_sources_and_targets(cell_gid_type gid,
 
     tgt.reserve(target_maps_[gid].size());
     for (auto t: target_maps_[gid]) {
-        tgt.push_back(std::make_pair(segment_location(t.first.segment, t.first.position), arb::mechanism_desc(t.first.synapse)));
+        tgt.push_back(std::make_pair(segment_location(t.first.segment, t.first.position), t.first.synapse));
     }
+}
+
+arb::morphology database::get_cell_morphology(cell_gid_type gid) {
+    auto loc_node = localize_cell(gid);
+    auto node_pop_id = loc_node.pop_id;
+    auto node_id = loc_node.el_id;
+
+    auto group_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
+    auto group_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
+
+    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto node_pop_name = nodes_[node_pop_id].name();
+
+    if (nodes_[node_pop_id].find_group(std::to_string(group_id)) != -1) {
+        auto lgi = nodes_[node_pop_id].find_group(std::to_string(group_id));
+        auto group = nodes_[node_pop_id][lgi];
+        if (group.find_dataset("morphology") != -1) {
+            auto file = group.string_at("morphology", group_idx);
+
+            std::ifstream f(file);
+            if (!f) throw sonata_exception("Unable to open SWC file");
+            return arb::swc_as_morphology(arb::parse_swc_file(f));
+        }
+    }
+    return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
+}
+
+std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_density_mechs(cell_gid_type gid) {
+    auto loc_node = localize_cell(gid);
+    auto node_pop_id = loc_node.pop_id;
+    auto node_id = loc_node.el_id;
+
+    auto nodes_grp_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
+    auto nodes_grp_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
+
+    auto nodes_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto nodes_pop_name = nodes_[node_pop_id].name();
+
+    auto density_vars = node_types_.dynamic_params(type_pop_id(nodes_type_tag, nodes_pop_name));
+
+    for (auto id: density_vars) {
+        auto gp_id = id.first;
+        for (auto var: id.second) {
+            auto var_id = var.first;
+            auto gp_var_id = gp_id + "." + var_id;
+
+            if (nodes_[node_pop_id].find_group(std::to_string(nodes_grp_id)) != -1) {
+                auto lgi = nodes_[node_pop_id].find_group(std::to_string(nodes_grp_id));
+                auto group = nodes_[node_pop_id][lgi];
+                if (group.find_dataset(gp_var_id) != -1) {
+                    auto value = group.double_at(gp_var_id, nodes_grp_idx);
+                    density_vars[gp_id][var_id] = value;
+                }
+
+            }
+        }
+    }
+    return node_types_.density_mech_desc(type_pop_id(nodes_type_tag, nodes_pop_name), std::move(density_vars));
 }
 
 unsigned database::num_sources(cell_gid_type gid) {
@@ -255,7 +305,8 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
     // First read edge_group_id and edge_group_index and edge_type
     auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
         auto loc_grp_id = edges_grp_id[i];
@@ -288,28 +339,16 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
         }
 
         // name and index of edge_type_id
-        auto e_type = edges_type[i];
-        unsigned type_idx = edge_types_.map()["edge_type_id"];
-
-        // find specific index of edge_type in type_idx
-        unsigned loc_type_idx;
-        for (loc_type_idx = 0; loc_type_idx < edge_types_.data()[type_idx].size(); loc_type_idx++) {
-            if (e_type == std::atoi(edge_types_.data()[type_idx][loc_type_idx].c_str())) {
-                break;
-            }
-        }
+        auto e_fields = edge_types_.fields(type_pop_id(edges_type_tag[i], edges_pop_name));
 
         if (!found_source_branch) {
-            unsigned source_branch_idx = edge_types_.map()["efferent_section_id"];
-            source_branch = std::atoi(edge_types_.data()[source_branch_idx][loc_type_idx].c_str());
+            source_branch = std::atoi(e_fields["efferent_section_id"].c_str());
         }
         if (!found_source_pos) {
-            unsigned source_pos_idx = edge_types_.map()["efferent_section_pos"];
-            source_pos = std::atof(edge_types_.data()[source_pos_idx][loc_type_idx].c_str());
+            source_pos = std::atof(e_fields["efferent_section_pos"].c_str());
         }
         if (!found_threshold) {
-            unsigned synapse_idx = edge_types_.map()["threshold"];
-            threshold = std::atof(edge_types_.data()[synapse_idx][loc_type_idx].c_str());
+            threshold = std::atof(e_fields["threshold"].c_str());
         }
 
         ret.emplace_back((unsigned)source_branch, source_pos, threshold);
@@ -323,7 +362,10 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
     // First read edge_group_id and edge_group_index and edge_type
     auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_pop_name = edges_[edge_pop_id].name();
+
+    auto cat = arb::global_default_catalogue();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
         auto loc_grp_id = edges_grp_id[i];
@@ -357,31 +399,58 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
         }
 
         // name and index of edge_type_id
-        auto e_type = edges_type[i];
-        unsigned type_idx = edge_types_.map()["edge_type_id"];
+        auto e_fields = edge_types_.fields(type_pop_id(edges_type_tag[i], edges_pop_name));
 
-        // find specific index of edge_type in type_idx
-        unsigned loc_type_idx;
-        for (loc_type_idx = 0; loc_type_idx < edge_types_.data()[type_idx].size(); loc_type_idx++) {
-            if (e_type == std::atoi(edge_types_.data()[type_idx][loc_type_idx].c_str())) {
-                break;
+        if (!found_target_branch) {
+            if (e_fields.find("afferent_section_id") != e_fields.end()) {
+                target_branch = std::atoi(e_fields["afferent_section_id"].c_str());
+            } else {
+                throw sonata_exception("Afferent Section ID missing");
+            }
+        }
+        if (!found_target_pos) {
+            if (e_fields.find("afferent_section_pos") != e_fields.end()) {
+                target_pos = std::atof(e_fields["afferent_section_pos"].c_str());
+            } else {
+                throw sonata_exception("Afferent Section pos missing");
+            }
+        }
+        if (!found_synapse) {
+            if (e_fields.find("model_template") != e_fields.end()) {
+                synapse = e_fields["model_template"];
+            } else {
+                throw sonata_exception("Model Template missing");
             }
         }
 
-        if (!found_target_branch) {
-            unsigned target_branch_idx = edge_types_.map()["afferent_section_id"];
-            target_branch = std::atoi(edge_types_.data()[target_branch_idx][loc_type_idx].c_str());
-        }
-        if (!found_target_pos) {
-            unsigned target_pos_idx = edge_types_.map()["afferent_section_pos"];
-            target_pos = std::atof(edge_types_.data()[target_pos_idx][loc_type_idx].c_str());
-        }
-        if (!found_synapse) {
-            unsigned synapse_idx = edge_types_.map()["model_template"];
-            synapse = edge_types_.data()[synapse_idx][loc_type_idx];
+        // After finding the synapse, set the parameters
+        std::unordered_map<std::string, double> syn_params;
+
+        arb::mechanism_desc syn(synapse);
+        auto mech = edge_types_.point_mech_desc(type_pop_id(edges_type_tag[i], edges_pop_name));
+
+        if (mech.name() == synapse) {
+            for (auto v: mech.values()) {
+                syn.set(v.first, v.second);
+            };
         }
 
-        ret.emplace_back((unsigned)target_branch, target_pos, synapse);
+        for (auto p: cat[synapse].parameters) {
+            if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
+                auto lgi = edges_[edge_pop_id].find_group(std::to_string(loc_grp_id));
+                auto group = edges_[edge_pop_id][lgi];
+                auto loc_grp_idx = edges_grp_idx[i];
+                if (group.find_dataset(p.first) != -1) {
+                    syn_params[p.first] = group.double_at(p.first, loc_grp_idx);
+                }
+            }
+        }
+
+        for (auto p: syn_params) {
+            syn.set(p.first, p.second);
+        }
+
+        ret.emplace_back((unsigned)target_branch, target_pos, syn);
     }
     return ret;
 }
@@ -392,7 +461,8 @@ std::vector<double> database::weight_range(unsigned edge_pop_id, std::pair<unsig
     // First read edge_group_id and edge_group_index and edge_type
     auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
         auto loc_grp_id = edges_grp_id[i];
@@ -413,20 +483,14 @@ std::vector<double> database::weight_range(unsigned edge_pop_id, std::pair<unsig
         }
 
         // name and index of edge_type_id
-        auto e_type = edges_type[i];
-        unsigned type_idx = edge_types_.map()["edge_type_id"];
-
-        // find specific index of edge_type in type_idx
-        unsigned loc_type_idx;
-        for (loc_type_idx = 0; loc_type_idx < edge_types_.data()[type_idx].size(); loc_type_idx++) {
-            if (e_type == std::atoi(edge_types_.data()[type_idx][loc_type_idx].c_str())) {
-                break;
-            }
-        }
+        auto e_fields = edge_types_.fields(type_pop_id(edges_type_tag[i], edges_pop_name));
 
         if (!found_weight) {
-            unsigned weight_idx = edge_types_.map()["syn_weight"];
-            weight = std::atof(edge_types_.data()[weight_idx][loc_type_idx].c_str());
+            if (e_fields.find("syn_weight") != e_fields.end()) {
+                weight = std::atof(e_fields["syn_weight"].c_str());
+            } else {
+                throw sonata_exception("Synapse weight missing");
+            }
         }
         ret.emplace_back(weight);
     }
@@ -439,7 +503,8 @@ std::vector<double> database::delay_range(unsigned edge_pop_id, std::pair<unsign
     // First read edge_group_id and edge_group_index and edge_type
     auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
     auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
         auto loc_grp_id = edges_grp_id[i];
@@ -460,20 +525,15 @@ std::vector<double> database::delay_range(unsigned edge_pop_id, std::pair<unsign
         }
 
         // name and index of edge_type_id
-        auto e_type = edges_type[i];
-        unsigned type_idx = edge_types_.map()["edge_type_id"];
-
-        // find specific index of edge_type in type_idx
-        unsigned loc_type_idx;
-        for (loc_type_idx = 0; loc_type_idx < edge_types_.data()[type_idx].size(); loc_type_idx++) {
-            if (e_type == std::atoi(edge_types_.data()[type_idx][loc_type_idx].c_str())) {
-                break;
-            }
-        }
+        auto e_fields = edge_types_.fields(type_pop_id(edges_type_tag[i], edges_pop_name));
 
         if (!found_delay) {
-            unsigned delay_idx = edge_types_.map()["delay"];
-            delay = std::atof(edge_types_.data()[delay_idx][loc_type_idx].c_str());
+
+            if (e_fields.find("delay") != e_fields.end()) {
+                delay = std::atof(e_fields["delay"].c_str());
+            } else {
+                throw sonata_exception("Synapse delay missing");
+            }
         }
         ret.emplace_back(delay);
     }

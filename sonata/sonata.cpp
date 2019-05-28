@@ -2,8 +2,6 @@
 #include <iomanip>
 #include <iostream>
 
-#include <nlohmann/json.hpp>
-
 #include <arbor/assert_macro.hpp>
 #include <arbor/common_types.hpp>
 #include <arbor/context.hpp>
@@ -37,6 +35,8 @@ using arb::cell_probe_address;
 
 // Generate a cell.
 arb::cable_cell dummy_cell(
+        arb::morphology,
+        std::unordered_map<std::string, std::vector<arb::mechanism_desc>>,
         std::vector<std::pair<arb::segment_location, double>>,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>>);
 
@@ -61,9 +61,11 @@ public:
         std::vector<std::pair<arb::segment_location,arb::mechanism_desc>> tgt_types;
 
         std::lock_guard<std::mutex> l(mtx_);
+        auto morph = database_.get_cell_morphology(gid);
+        auto mechs = database_.get_density_mechs(gid);
         database_.get_sources_and_targets(gid, src_types, tgt_types);
 
-        return dummy_cell(src_types, tgt_types);
+        return dummy_cell(morph, mechs, src_types, tgt_types);
     }
 
     cell_kind get_cell_kind(cell_gid_type gid) const override { return cell_kind::cable; }
@@ -157,19 +159,25 @@ int main(int argc, char **argv)
         // Create an instance of our recipe.
         using h5_file_handle = std::shared_ptr<h5_file>;
 
-        h5_file_handle nodes = std::make_shared<h5_file>(params.nodes_hdf5);
-        h5_file_handle edges = std::make_shared<h5_file>(params.edges_hdf5);
+        h5_file_handle nodes_0 = std::make_shared<h5_file>(params.nodes_0);
+        h5_file_handle nodes_1 = std::make_shared<h5_file>(params.nodes_1);
+
+        h5_file_handle edges_0 = std::make_shared<h5_file>(params.edges_0);
+        h5_file_handle edges_1 = std::make_shared<h5_file>(params.edges_1);
+        h5_file_handle edges_2 = std::make_shared<h5_file>(params.edges_2);
+        h5_file_handle edges_3 = std::make_shared<h5_file>(params.edges_3);
+
         csv_file node_def(params.nodes_csv);
         csv_file edge_def(params.edges_csv);
 
-        hdf5_record n(nodes);
+        hdf5_record n({nodes_0, nodes_1});
         n.verify_nodes();
 
-        hdf5_record e(edges);
+        hdf5_record e({edges_0, edges_1, edges_2, edges_3});
         e.verify_edges();
 
-        csv_record e_t(edge_def);
-        csv_record n_t(node_def);
+        csv_record e_t({edge_def});
+        csv_record n_t({node_def});
 
         sonata_recipe recipe(n, e, n_t, e_t);
 
@@ -248,23 +256,38 @@ int main(int argc, char **argv)
 
 
 arb::cable_cell dummy_cell(
+        arb::morphology morph,
+        std::unordered_map<std::string, std::vector<arb::mechanism_desc>> mechs,
         std::vector<std::pair<arb::segment_location, double>> detectors,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> synapses) {
 
-    arb::cable_cell cell;
+    arb::cable_cell cell = arb::make_cable_cell(morph);
 
-    // Add soma.
-    auto soma = cell.add_soma(12.6157/2.0); // For area of 500 μm².
-    soma->rL = 100;
-    soma->add_mechanism("hh");
-
-    auto dend = cell.add_cable(0, arb::section_kind::dendrite, 3.0/2.0, 3.0/2.0, 300); //cable 1
-    dend->set_compartments(200);
-    dend->add_mechanism("pas");
-
-    auto dend1 = cell.add_cable(1, arb::section_kind::dendrite, 3.0/2.0, 3.0/2.0, 300); //cable 2
-    dend1->set_compartments(200);
-    dend1->add_mechanism("pas");
+    for (auto& segment: cell.segments()) {
+        switch (segment->kind()) {
+            case arb::section_kind::soma : {
+                segment->rL = 100;
+                for (auto mech: mechs["soma"]) {
+                    segment->add_mechanism(mech);
+                }
+                break;
+            }
+            case arb::section_kind::axon : {
+                for (auto mech: mechs["axon"]) {
+                    segment->add_mechanism(mech);
+                }
+                segment->set_compartments(200);
+                break;
+            }
+            case arb::section_kind::dendrite : {
+                for (auto mech: mechs["dend"]) {
+                    segment->add_mechanism(mech);
+                }
+                segment->set_compartments(200);
+                break;
+            }
+        }
+    }
 
     // Add spike threshold detector at the soma.
     for (auto d: detectors) {

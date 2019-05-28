@@ -1,13 +1,19 @@
 import h5py
 
-f = h5py.File("edges_brunel.h5", "a")
+f0 = h5py.File("edges_0.h5", "a")
+f1 = h5py.File("edges_1.h5", "a")
+f2 = h5py.File("edges_2.h5", "a")
+f3 = h5py.File("edges_3.h5", "a")
 
-edges = f.create_group("edges")
+edges0 = f0.create_group("edges")
+edges1 = f1.create_group("edges")
+edges2 = f2.create_group("edges")
+edges3 = f3.create_group("edges")
 
-pop_e_e = edges.create_group("pop_e_e")
-pop_i_e = edges.create_group("pop_i_e")
-pop_i_i = edges.create_group("pop_i_i")
-pop_e_i = edges.create_group("pop_e_i")
+pop_e_e = edges0.create_group("pop_e_e")
+pop_i_e = edges1.create_group("pop_i_e")
+pop_i_i = edges2.create_group("pop_i_i")
+pop_e_i = edges3.create_group("pop_e_i")
 
 #################################################################################
 nedges = 8000
@@ -72,10 +78,10 @@ efferent_id = g0.create_dataset("efferent_section_id", (nedges,), dtype="i")
 efferent_pos = g0.create_dataset("efferent_section_pos", (nedges,), dtype="f")
 
 for i in range(0,nedges):
-    afferent_id[i] = i%3
-    afferent_pos[i] = float(i)/float(nedges+1)
-    efferent_id[i] = i%3
-    efferent_pos[i] = float(i)/float(nedges+1)
+    afferent_id[i] = 0
+    afferent_pos[i] = 0.5
+    efferent_id[i] = 0
+    efferent_pos[i] = 0.9
 
 ##################################################################################
 nedges = 2000
@@ -142,10 +148,10 @@ efferent_id = g0.create_dataset("efferent_section_id", (nedges,), dtype="i")
 efferent_pos = g0.create_dataset("efferent_section_pos", (nedges,), dtype="f")
 
 for i in range(0,nedges):
-    afferent_id[i] = i%3
-    afferent_pos[i] = float(i)/float(nedges+1)
-    efferent_id[i] = i%3
-    efferent_pos[i] = float(i)/float(nedges+1)
+    afferent_id[i] = 0
+    afferent_pos[i] = 0.5
+    efferent_id[i] = 0
+    efferent_pos[i] = 0.9
 
 ##################################################################################
 nedges = 500
@@ -211,10 +217,10 @@ efferent_id = g0.create_dataset("efferent_section_id", (nedges,), dtype="i")
 efferent_pos = g0.create_dataset("efferent_section_pos", (nedges,), dtype="f")
 
 for i in range(0,nedges):
-    afferent_id[i] = i%3
-    afferent_pos[i] = float(i)/float(nedges+1)
-    efferent_id[i] = i%3
-    efferent_pos[i] = float(i)/float(nedges+1)
+    afferent_id[i] = 0
+    afferent_pos[i] = 0.5
+    efferent_id[i] = 0
+    efferent_pos[i] = 0.9
 
 ####################################### NOT PARAMETRIZABLE ##################################
 nedges = 2000
@@ -288,4 +294,7 @@ for i in range(0,nedges):
     efferent_pos[i] = 0.9
 
 ##################################################################################
-f.close()
+f0.close()
+f1.close()
+f2.close()
+f3.close()

@@ -505,23 +505,29 @@ private:
 
 class hdf5_record {
 public:
-    hdf5_record(const std::shared_ptr<h5_file>& file) {
-        if (file->top_group_->groups_.size() != 1) {
-            throw sonata_exception("file hierarchy wrong\n");
-        }
-
+    hdf5_record(const std::vector<std::shared_ptr<h5_file>>& files) {
         unsigned idx = 0;
-        for (auto g: file->top_group_->groups_.front()->groups_) {
-            map_[g->name()] = idx++;
-            populations_.emplace_back(g);
-        }
-
         partition_.push_back(0);
-        for (auto& p: file->top_group_->groups_.front()->groups_) {
-            for(auto& d: p->datasets_) {
-                if (d->name().find("type_id") != std::string::npos) {
-                    num_elements_ += d->size();
-                    partition_.push_back(num_elements_);
+        for (auto f: files) {
+            if (f->top_group_->groups_.size() != 1) {
+                throw sonata_exception("file hierarchy wrong\n");
+            }
+
+            if (f->top_group_->groups_.front()->groups_.size() != 1) {
+                throw sonata_exception("file hierarchy wrong\n");
+            }
+
+            for (auto g: f->top_group_->groups_.front()->groups_) {
+                map_[g->name()] = idx++;
+                populations_.emplace_back(g);
+            }
+
+            for (auto &p: f->top_group_->groups_.front()->groups_) {
+                for (auto &d: p->datasets_) {
+                    if (d->name().find("type_id") != std::string::npos) {
+                        num_elements_ += d->size();
+                        partition_.push_back(num_elements_);
+                    }
                 }
             }
         }

@@ -26,12 +26,14 @@ struct source_type {
     source_type(cell_lid_type s, double p, double t) : segment(s), position(p), threshold(t) {}
 };
 
+bool operator==(const arb::mechanism_desc &lhs, const arb::mechanism_desc &rhs);
+
 struct target_type {
     cell_lid_type segment;
     double position;
-    std::string synapse;
+    arb::mechanism_desc synapse;
 
-    target_type(cell_lid_type s, double p, std::string m) : segment(s), position(p), synapse(m) {}
+    target_type(cell_lid_type s, double p, arb::mechanism_desc m) : segment(s), position(p), synapse(m) {}
 
     bool operator==(const target_type& rhs) {
         return (position == rhs.position) && (segment == rhs.segment) && (synapse == rhs.synapse);
@@ -50,10 +52,18 @@ public:
         return edges_.num_elements();
     }
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
+
     void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
+
     void get_sources_and_targets(cell_gid_type gid,
                                  std::vector<std::pair<segment_location, double>>& src,
                                  std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt);
+
+    arb::morphology get_cell_morphology(cell_gid_type gid);
+
+    // Returns section -> mechanisms
+    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> get_density_mechs(cell_gid_type);
+
     unsigned num_sources(cell_gid_type gid);
     unsigned num_targets(cell_gid_type gid);
 
@@ -89,17 +99,13 @@ private:
         return e.el_id + edges_.partitions()[e.pop_id];
     }
 
-    std::unordered_map <unsigned, unsigned> edge_to_source_of_target(unsigned target_pop) {
-        std::unordered_map <unsigned, unsigned> edge_to_source;
-        unsigned src_vec_id = edge_types_.map()["source_pop_name"];
-        unsigned tgt_vec_id = edge_types_.map()["target_pop_name"];
-        unsigned edge_vec_id = edge_types_.map()["pop_name"];
+    std::unordered_map<unsigned, unsigned> edge_to_source_of_target(unsigned target_pop) {
+        std::unordered_map<unsigned, unsigned> edge_to_source;
 
-        for (unsigned i = 0; i < edge_types_.data()[src_vec_id].size(); i++) {
-            if (edge_types_.data()[tgt_vec_id][i] == nodes_[target_pop].name()) {
-                auto edge_pop = edge_types_.data()[edge_vec_id][i];
-                auto source_pop = edge_types_.data()[src_vec_id][i];
-                edge_to_source[edges_.map()[edge_pop]] = nodes_.map()[source_pop];
+        for (auto edge_type: edge_types_.data()) {
+            auto type = edge_type.second;
+            if (type["target_pop_name"] == nodes_[target_pop].name()) {
+                edge_to_source[edges_.map()[type["pop_name"]]] = nodes_.map()[type["source_pop_name"]];
             }
         }
         return edge_to_source;
@@ -107,13 +113,11 @@ private:
 
     std::unordered_set<unsigned> edges_of_target(unsigned target_pop) {
         std::unordered_set<unsigned> target_edge_pops;
-        unsigned tgt_vec_id = edge_types_.map()["target_pop_name"];
-        unsigned edge_vec_id = edge_types_.map()["pop_name"];
 
-        for (unsigned i = 0; i < edge_types_.data()[tgt_vec_id].size(); i++) {
-            if (edge_types_.data()[tgt_vec_id][i] == nodes_[target_pop].name()) {
-                auto e_pop = edge_types_.data()[edge_vec_id][i];
-                target_edge_pops.insert(edges_.map()[e_pop]);
+        for (auto edge_type: edge_types_.data()) {
+            auto type = edge_type.second;
+            if (type["target_pop_name"] == nodes_[target_pop].name()) {
+                target_edge_pops.insert(edges_.map()[type["pop_name"]]);
             }
         }
         return target_edge_pops;
@@ -121,13 +125,11 @@ private:
 
     std::unordered_set<unsigned> edges_of_source(unsigned source_pop) {
         std::unordered_set<unsigned> source_edge_pops;
-        unsigned src_vec_id = edge_types_.map()["source_pop_name"];
-        unsigned edge_vec_id = edge_types_.map()["pop_name"];
 
-        for (unsigned i = 0; i < edge_types_.data()[src_vec_id].size(); i++) {
-            if (edge_types_.data()[src_vec_id][i] == nodes_[source_pop].name()) {
-                auto e_pop = edge_types_.data()[edge_vec_id][i];
-                source_edge_pops.insert(edges_.map()[e_pop]);
+        for (auto edge_type: edge_types_.data()) {
+            auto type = edge_type.second;
+            if (type["source_pop_name"] == nodes_[source_pop].name()) {
+                source_edge_pops.insert(edges_.map()[type["pop_name"]]);
             }
         }
         return source_edge_pops;
