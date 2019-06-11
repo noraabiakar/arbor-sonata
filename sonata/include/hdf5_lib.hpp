@@ -424,6 +424,13 @@ public:
         return -1;
     }
 
+    int dataset_size(std::string name) {
+        if (dset_map.find(name) != dset_map.end()) {
+            return ptr->datasets_[dset_map[name]]->size();
+        }
+        return -1;
+    }
+
     int int_at(std::string name, unsigned i) {
         if (find_dataset(name) != -1) {
             return ptr->datasets_[dset_map[name]]->int_at(i);
@@ -513,11 +520,8 @@ public:
                 throw sonata_exception("file hierarchy wrong\n");
             }
 
-            if (f->top_group_->groups_.front()->groups_.size() != 1) {
-                throw sonata_exception("file hierarchy wrong\n");
-            }
-
             for (auto g: f->top_group_->groups_.front()->groups_) {
+                pop_names_.emplace_back(g->name());
                 map_[g->name()] = idx++;
                 populations_.emplace_back(g);
             }
@@ -560,28 +564,37 @@ public:
         }
     }
 
-    int num_elements() {
+    int num_elements() const {
         return num_elements_;
+    }
+
+    h5_wrapper operator [](std::string i) const {
+        return populations_[map_.at(i)];
     }
 
     h5_wrapper operator [](int i) const {
         return populations_[i];
     }
 
-    std::vector<h5_wrapper> populations() {
+    std::vector<h5_wrapper> populations() const {
         return populations_;
     }
 
-    std::vector<unsigned> partitions() {
+    std::vector<unsigned> partitions() const {
         return partition_;
     }
 
-    std::unordered_map<std::string, unsigned> map() {
+    std::unordered_map<std::string, unsigned> map() const {
         return map_;
+    }
+
+    std::vector<std::string> pop_names() const {
+        return pop_names_;
     }
 
 private:
     int num_elements_ = 0;
+    std::vector<std::string> pop_names_;
     std::vector<unsigned> partition_;
     std::vector<h5_wrapper> populations_;
     std::unordered_map<std::string, unsigned> map_;

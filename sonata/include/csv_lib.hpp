@@ -37,15 +37,12 @@ namespace std {
 class csv_file {
     std::string fileName;
     char delimeter;
+    std::vector<std::vector<std::string>> data;
 
 public:
     csv_file(std::string filename, char delm = ',') :
-            fileName(filename), delimeter(delm) { }
-
-    std::vector<std::vector<std::string>> get_data() {
+            fileName(filename), delimeter(delm) {
         std::ifstream file(fileName);
-
-        std::vector<std::vector<std::string>> data;
         std::string line;
 
         while (getline(file, line)) {
@@ -59,7 +56,14 @@ public:
             data.push_back(vec);
         }
         file.close();
+    }
+
+    std::vector<std::vector<std::string>> get_data() {
         return data;
+    }
+
+    std::string name() {
+        return fileName;
     }
 };
 
@@ -96,29 +100,60 @@ public:
 
         for (auto type: fields_) {
             if (!is_edge_) {
-                if (type.second.find("morphology") != type.second.end()) {
-                    std::ifstream f(type.second["morphology"]);
-                    if (!f) throw sonata_exception("Unable to open SWC file");
-                    morphologies_[type.first] = arb::swc_as_morphology(arb::parse_swc_file(f));
-                } else {
-                    throw sonata_exception("Morphology not found in node csv description");
+                if (type.second.find("model_type") == type.second.end()) {
+                    throw sonata_exception("Model_type not found in node csv description");
                 }
+                std::string model_type = type.second["model_type"];
 
-                if (type.second.find("model_template") != type.second.end()) {
-                    density_params_.insert(
-                            {type.first, std::move(read_dynamics_params_density_base(type.second["model_template"]))});
-                } else {
+                if (model_type != "virtual") {
+                    if (type.second.find("morphology") != type.second.end()) {
+                        if (type.second["morphology"] == "NULL") {
+                            throw sonata_exception("Morphology of non-virtual cell can not be NULL");
+                        }
+                        std::ifstream f(type.second["morphology"]);
+                        if (!f) throw sonata_exception("Unable to open SWC file");
+                        morphologies_[type.first] = arb::swc_as_morphology(arb::parse_swc_file(f));
+                    } else {
+                        throw sonata_exception("Morphology not found in node csv description");
+                    }
+
+                    if (type.second.find("model_template") != type.second.end()) {
+                        if (type.second["model_template"] == "NULL") {
+                            throw sonata_exception("Model_template of non-virtual cell can not be NULL");
+                        }
+                        density_params_.insert(
+                                {type.first, std::move(read_dynamics_params_density_base(type.second["model_template"]))});
+                    } else {
+                        throw sonata_exception("Model_template not found in node csv description");
+                    }
+
+                    if (type.second.find("dynamics_params") != type.second.end()) {
+                        if (type.second["dynamics_params"] != "NULL") {
+                            auto dyn_params = std::move(
+                                    read_dynamics_params_density_override(type.second["dynamics_params"]));
+                            override_density_params(type.first, dyn_params);
+                        }
+                    }
+                }
+            } else {
+                if (type.second.find("model_template") == type.second.end()) {
                     throw sonata_exception("Model_template not found in node csv description");
                 }
 
                 if (type.second.find("dynamics_params") != type.second.end()) {
-                    auto dyn_params = std::move(read_dynamics_params_density_override(type.second["dynamics_params"]));
-                    override_density_params(type.first, dyn_params);
-                }
-            } else {
-                if (type.second.find("dynamics_params") != type.second.end()) {
-                    point_params_.insert(
-                            {type.first, std::move(read_dynamics_params_point(type.second["dynamics_params"]))});
+                    if (type.second["dynamics_params"] != "NULL") {
+                        auto mech = read_dynamics_params_point(type.second["dynamics_params"]);
+
+                        if (mech.name() != type.second["model_template"]) {
+                            throw sonata_exception("point mechanism in \'dynamics_params\' does not match \'model_template\'");
+                        }
+
+                        point_params_.insert({type.first, std::move(mech)});
+                    } else {
+                        point_params_.insert({type.first, arb::mechanism_desc(type.second["model_template"])});
+                    }
+                } else {
+                    point_params_.insert({type.first, arb::mechanism_desc(type.second["model_template"])});
                 }
             }
         }
@@ -148,6 +183,13 @@ public:
             return point_params_.at(id);
         }
         throw sonata_exception("Requested CSV dynamics_params not available");
+    }
+
+    arb::cell_kind get_cell_kind(type_pop_id id) {
+        if (fields_[id]["model_type"] == "virtual") {
+            return arb::cell_kind::spike_source;
+        }
+        return arb::cell_kind::cable;
     }
 
     std::unordered_map<std::string, variable_map> dynamic_params(type_pop_id id) {

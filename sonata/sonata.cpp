@@ -7,6 +7,7 @@
 #include <arbor/context.hpp>
 #include <arbor/load_balance.hpp>
 #include <arbor/cable_cell.hpp>
+#include <arbor/spike_source_cell.hpp>
 #include <arbor/profile/meter_manager.hpp>
 #include <arbor/profile/profiler.hpp>
 #include <arbor/simple_sampler.hpp>
@@ -40,12 +41,18 @@ arb::cable_cell dummy_cell(
         std::vector<std::pair<arb::segment_location, double>>,
         std::vector<std::pair<arb::segment_location, arb::mechanism_desc>>);
 
-void write_trace_json(const arb::trace_data<double>& trace);
-
 class sonata_recipe: public arb::recipe {
 public:
-    sonata_recipe(hdf5_record nodes, hdf5_record edges, csv_record node_types, csv_record edge_types):
-            database_(nodes, edges, node_types, edge_types),
+    sonata_recipe(sonata_params params):
+            database_(params.network.nodes,
+                      params.network.edges,
+                      params.network.nodes_types,
+                      params.network.edges_types,
+                      params.spikes_input,
+                      params.current_clamps),
+            run_params_(params.run),
+            sim_cond_(params.conditions),
+            probe_info_(params.probes_info),
             num_cells_(database_.num_cells()) {}
 
     cell_size_type num_cells() const override {
@@ -53,22 +60,47 @@ public:
     }
 
     void build_local_maps(const arb::domain_decomposition& decomp) {
+        std::lock_guard<std::mutex> l(mtx_);
         database_.build_source_and_target_maps(decomp.groups);
     }
 
     arb::util::unique_any get_cell_description(cell_gid_type gid) const override {
-        std::vector<std::pair<arb::segment_location,double>> src_types;
-        std::vector<std::pair<arb::segment_location,arb::mechanism_desc>> tgt_types;
+        if (get_cell_kind(gid) == cell_kind::cable) {
+            std::vector<arb::segment_location> src_locs;
+            std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> tgt_types;
 
-        std::lock_guard<std::mutex> l(mtx_);
-        auto morph = database_.get_cell_morphology(gid);
-        auto mechs = database_.get_density_mechs(gid);
-        database_.get_sources_and_targets(gid, src_types, tgt_types);
+            std::lock_guard<std::mutex> l(mtx_);
+            auto morph = database_.get_cell_morphology(gid);
+            auto mechs = database_.get_density_mechs(gid);
 
-        return dummy_cell(morph, mechs, src_types, tgt_types);
+            database_.get_sources_and_targets(gid, src_locs, tgt_types);
+
+            std::vector<std::pair<arb::segment_location, double>> src_types;
+            for (auto s: src_locs) {
+                src_types.push_back(std::make_pair(s, run_params_.threshold));
+            }
+
+            auto cell = dummy_cell(morph, mechs, src_types, tgt_types);
+
+            auto stims = database_.get_current_clamps(gid);
+            for (auto s: stims) {
+                arb::i_clamp stim(s.delay, s.duration, s.amplitude);
+                cell.add_stimulus(s.stim_loc, stim);
+            }
+
+            return cell;
+        }
+        else if (get_cell_kind(gid) == cell_kind::spike_source) {
+            std::lock_guard<std::mutex> l(mtx_);
+            std::vector<double> time_sequence = database_.get_spikes(gid);
+            return arb::util::unique_any(arb::spike_source_cell{arb::explicit_schedule(time_sequence)});
+        }
     }
 
-    cell_kind get_cell_kind(cell_gid_type gid) const override { return cell_kind::cable; }
+    cell_kind get_cell_kind(cell_gid_type gid) const override {
+        std::lock_guard<std::mutex> l(mtx_);
+        return database_.get_cell_kind(gid);
+    }
 
     cell_size_type num_sources(cell_gid_type gid) const override {
         std::lock_guard<std::mutex> l(mtx_);
@@ -91,31 +123,86 @@ public:
 
     std::vector<arb::event_generator> event_generators(cell_gid_type gid) const override {
         std::vector<arb::event_generator> gens;
-        if (gid == 1) {
-            float t = ((float)gid/num_cells())*3.0;
-            gens.push_back(arb::explicit_generator(arb::pse_vector{{{gid, 0}, t, 0.009}}));
-        }
         return gens;
     }
 
     cell_size_type num_probes(cell_gid_type gid)  const override {
-        return 1;
+        std::lock_guard<std::mutex> l(mtx_);
+        std::string population = database_.population_of(gid);
+
+        unsigned sum = 0;
+        for (auto p: probe_info_) {
+            if (population == p.population) {
+                if (p.node_ids.empty()) {
+                    sum++;
+                } else {
+                    if (std::binary_search(p.node_ids.begin(), p.node_ids.end(), database_.population_id_of(gid))) {
+                        sum++;
+                    }
+                }
+            }
+        }
+        return sum;
     }
 
     arb::probe_info get_probe(cell_member_type id) const override {
-        // Get the appropriate kind for measuring voltage.
-        cell_probe_address::probe_kind kind = cell_probe_address::membrane_voltage;
-        // Measure at the soma.
-        arb::segment_location loc(0, 0.01);
+        std::lock_guard<std::mutex> l(mtx_);
+        std::string population = database_.population_of(id.gid);
 
-        return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
+        unsigned loc = 0;
+        for (auto p: probe_info_) {
+            if (population == p.population) {
+                if (p.node_ids.empty() || std::binary_search(p.node_ids.begin(), p.node_ids.end(), database_.population_id_of(id.gid))) {
+                    if (loc == id.index) {
+                        // Get the appropriate kind for measuring voltage.
+                        cell_probe_address::probe_kind kind;
+                        if (p.kind == "v") {
+                            kind = cell_probe_address::membrane_voltage;
+                        } else if (p.kind == "i") {
+                            kind = cell_probe_address::membrane_current;
+                        } else {
+                            throw sonata_exception("Probe kind not supported");
+                        }
+                        arb::segment_location loc(p.sec_id, p.sec_pos);
+
+                        probe_files_[id] = p.file_name;
+                        return arb::probe_info{id, kind, cell_probe_address{loc, kind}};
+                    }
+                    loc++;
+                }
+            }
+        }
+    }
+
+    arb::util::any get_global_properties(cell_kind k) const override {
+        arb::cable_cell_global_properties a;
+        a.temperature_K = sim_cond_.temp_c + 273.15;
+        a.init_membrane_potential_mV = sim_cond_.v_init;
+        return a;
+    }
+
+    std::string get_probe_file(cell_member_type id) const {
+        return probe_files_[id];
+    }
+
+    std::vector<unsigned> get_pop_partitions() const {
+        return database_.pop_partitions();
+    }
+
+    std::vector<std::string> get_pop_names() const {
+        return database_.pop_names();
     }
 
 private:
     mutable std::mutex mtx_;
     mutable database database_;
+
+    run_params run_params_;
+    sim_conditions sim_cond_;
+    std::vector<probe_info> probe_info_;
+
+    mutable std::unordered_map<cell_member_type, std::string> probe_files_;
     cell_size_type num_cells_;
-    std::vector<unsigned> naive_partition_;
 };
 
 int main(int argc, char **argv)
@@ -157,29 +244,7 @@ int main(int argc, char **argv)
         meters.start(context);
 
         // Create an instance of our recipe.
-        using h5_file_handle = std::shared_ptr<h5_file>;
-
-        h5_file_handle nodes_0 = std::make_shared<h5_file>(params.nodes_0);
-        h5_file_handle nodes_1 = std::make_shared<h5_file>(params.nodes_1);
-
-        h5_file_handle edges_0 = std::make_shared<h5_file>(params.edges_0);
-        h5_file_handle edges_1 = std::make_shared<h5_file>(params.edges_1);
-        h5_file_handle edges_2 = std::make_shared<h5_file>(params.edges_2);
-        h5_file_handle edges_3 = std::make_shared<h5_file>(params.edges_3);
-
-        csv_file node_def(params.nodes_csv);
-        csv_file edge_def(params.edges_csv);
-
-        hdf5_record n({nodes_0, nodes_1});
-        n.verify_nodes();
-
-        hdf5_record e({edges_0, edges_1, edges_2, edges_3});
-        e.verify_edges();
-
-        csv_record e_t({edge_def});
-        csv_record n_t({node_def});
-
-        sonata_recipe recipe(n, e, n_t, e_t);
+        sonata_recipe recipe(params);
 
         auto decomp = arb::partition_load_balance(recipe, context);
 
@@ -188,16 +253,30 @@ int main(int argc, char **argv)
         // Construct the model.
         arb::simulation sim(recipe, decomp, context);
 
-        // Set up the probe that will measure voltage in the cell.
-
-        // The id of the only probe on the cell: the cell_member type points to (cell 0, probe 0)
-        auto probe_id = cell_member_type{421, 0};
-        // The schedule for sampling is 10 samples every 1 ms.
+        // Set up the probes that will measure voltages in the cells.
+        std::unordered_map<cell_member_type, trace_info> traces;
+        std::unordered_map<std::string, std::vector<cell_member_type>> trace_groups;
         auto sched = arb::regular_schedule(0.1);
-        // This is where the voltage samples will be stored as (time, value) pairs
-        arb::trace_data<double> voltage;
-        // Now attach the sampler at probe_id, with sampling schedule sched, writing to voltage
-        sim.add_sampler(arb::one_probe(probe_id), sched, arb::make_simple_sampler(voltage));
+
+        for (auto g : decomp.groups) {
+            for (auto i : g.gids) {
+                auto num_probes = recipe.num_probes(i);
+                for (unsigned j = 0; j < num_probes; j++) {
+                    auto probe = recipe.get_probe({i,j});
+                    auto probe_address = arb::util::any_cast<cell_probe_address>(probe.address);
+
+                    trace_info t;
+
+                    t.is_voltage = probe_address.kind == cell_probe_address::membrane_voltage;
+                    t.seg_id = probe_address.location.segment;
+                    t.seg_pos = probe_address.location.position;
+
+                    trace_groups[recipe.get_probe_file({i,j})].push_back({i,j});
+                    traces[{i, j}] = t;
+                    sim.add_sampler(arb::one_probe({i, j}), sched, arb::make_simple_sampler(traces[{i, j}].data));
+                }
+            }
+        }
 
         // Set up recording of spikes to a vector on the root process.
         std::vector<arb::spike> recorded_spikes;
@@ -212,7 +291,7 @@ int main(int argc, char **argv)
 
         std::cout << "running simulation" << std::endl;
         // Run the simulation for 100 ms, with time steps of 0.025 ms.
-        sim.run(100, 0.025);
+        sim.run(params.run.duration, params.run.dt);
 
         meters.checkpoint("model-run", context);
 
@@ -222,23 +301,11 @@ int main(int argc, char **argv)
         // Write spikes to file
         if (root) {
             std::cout << "\n" << ns << " spikes generated \n";
-            std::ofstream fid("spikes.gdf");
-            if (!fid.good()) {
-                std::cerr << "Warning: unable to open file spikes.gdf for spike output\n";
-            }
-            else {
-                char linebuf[45];
-                for (auto spike: recorded_spikes) {
-                    auto n = std::snprintf(
-                            linebuf, sizeof(linebuf), "%u %.4f\n",
-                            unsigned{spike.source.gid}, float(spike.time));
-                    fid.write(linebuf, n);
-                }
-            }
+            write_spikes(recorded_spikes, params.spike_output.sort_by == "time", params.spike_output.file_name, recipe.get_pop_names(), recipe.get_pop_partitions());
         }
 
         // Write the samples to a json file.
-        if (root) write_trace_json(voltage);
+        if (root) write_trace(traces, trace_groups, recipe.get_pop_names(), recipe.get_pop_partitions());
 
         auto report = arb::profile::make_meter_report(meters, context);
         std::cout << report;
@@ -299,26 +366,4 @@ arb::cable_cell dummy_cell(
     }
 
     return cell;
-}
-
-
-void write_trace_json(const arb::trace_data<double>& trace) {
-    std::string path = "./voltages.json";
-
-    nlohmann::json json;
-    json["name"] = "ring demo";
-    json["units"] = "mV";
-    json["cell"] = "0.0";
-    json["probe"] = "0";
-
-    auto& jt = json["data"]["time"];
-    auto& jy = json["data"]["voltage"];
-
-    for (const auto& sample: trace) {
-        jt.push_back(sample.t);
-        jy.push_back(sample.v);
-    }
-
-    std::ofstream file(path);
-    file << std::setw(1) << json << "\n";
 }

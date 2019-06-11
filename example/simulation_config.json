@@ -1,0 +1,54 @@
+{
+  "network": "/home/abiakarn/git/arbor-sonata/example/circuit_config.json", 
+
+  "conditions": {
+    "celsius": 6.3, 
+    "v_init": -65
+  },
+  
+  "run": {
+     "tstop": 100.0,
+     "dt": 0.025, 
+     "spike_threshold": 10 
+  },
+
+  "node_sets_file": "/home/abiakarn/git/arbor-sonata/example/inputs/node_set.json",
+  
+  "inputs": {
+    "clamp": {
+      "input_type": "current_clamp",
+      "module": "IClamp",
+      "electrode_file": "/home/abiakarn/git/arbor-sonata/example/inputs/clamp_electrode.csv",
+      "input_file": "/home/abiakarn/git/arbor-sonata/example/inputs/clamp_input.csv"
+    },
+    "spikes": {
+      "input_type": "spikes",
+      "module": "h5",
+      "input_file": "/home/abiakarn/git/arbor-sonata/example/inputs/input_spikes.h5",
+      "node_set": "stim"
+    }
+  },
+  
+  "outputs": {
+    "spikes_file": "output_spikes.h5",
+    "spikes_sort_order": "time"
+  },
+
+  "reports": {
+  "membrane_potential": {
+    "node_set": "recorded_cells_e",
+    "variable_name": "v",
+    "report_file": "voltage_report.h5",
+    "section_id": 0,
+    "section_pos": 0.5
+  },
+
+  "membrane_current": {
+    "node_set": "recorded_cells_i",
+    "variable_name": "i",
+    "report_file": "current_report.h5",
+    "section_id": 0,
+    "section_pos": 0.4}
+}
+
+}

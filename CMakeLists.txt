@@ -10,13 +10,13 @@ find_package(MPI REQUIRED CXX)
 find_package(arbor REQUIRED)
 find_package(HDF5 REQUIRED)
 add_executable(
-        sonata 
-        sonata.cpp
-        data_management_lib.cpp
-        include/json_helper.cpp)
+        sonata
+        sonata/sonata.cpp
+        sonata/data_management_lib.cpp
+        sonata/include/dynamics_params_helper.cpp)
 
 target_link_libraries(sonata PRIVATE arbor::arbor arbor::arborenv ${HDF5_C_LIBRARIES})
-target_include_directories(sonata PRIVATE ../common/cpp/include ${HDF5_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
+target_include_directories(sonata PRIVATE common/cpp/include ${HDF5_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
 
 set_target_properties(sonata PROPERTIES OUTPUT_NAME arbor-sonata)
 

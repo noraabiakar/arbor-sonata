@@ -10,34 +10,85 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
-inline bool operator==(const source_type& lhs, const source_type& rhs) {
-    return lhs.segment   == rhs.segment && lhs.position  == rhs.position && lhs.threshold == rhs.threshold;
-}
+void database::build_current_clamp_map(std::vector<current_clamp_info> current) {
 
-inline bool operator==(const target_type& lhs, const target_type& rhs) {
-    return lhs.position == rhs.position && lhs.segment == rhs.segment && lhs.synapse == rhs.synapse;
-}
-
-bool operator==(const arb::mechanism_desc &lhs, const arb::mechanism_desc &rhs)
-{
-    return lhs.name() == rhs.name() && lhs.values() == rhs.values();
-}
-
-namespace std {
-    template<> struct hash<source_type>
-    {
-        std::size_t operator()(const source_type& s) const noexcept
-        {
-            std::size_t const h1(std::hash<unsigned>{}(s.segment));
-            std::size_t const h2(std::hash<double>{}(s.position));
-            std::size_t const h3(std::hash<double>{}(s.threshold));
-            auto h1_2 = h1 ^ (h2 << 1);
-            return (h1_2 >> 1) ^ (h3 << 1);
-        }
+    struct param_info {
+        double dur;
+        double amp;
+        double delay;
     };
-}
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    struct loc_info {
+        cell_gid_type gid;
+        std::string population;
+        unsigned seg;
+        double pos;
+    };
+    for (auto curr_clamp : current){
+        std::unordered_map<unsigned, param_info> param_map;
+        std::unordered_map<unsigned, loc_info> loc_map;
+
+        auto stim_param_data = curr_clamp.stim_params.get_data();
+        auto stim_param_cols = stim_param_data.front();
+
+        for(auto it = stim_param_data.begin()+1; it < stim_param_data.end(); it++) {
+            loc_info loc;
+            unsigned pos = 0, id;
+
+            for (auto field: *it) {
+                if(stim_param_cols[pos] == "electrode_id") {
+                    id = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "node_id") {
+                    loc.gid = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "population") {
+                    loc.population = field;
+                } else if (stim_param_cols[pos] == "sec_id") {
+                    loc.seg = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "seg_x") {
+                    loc.pos = std::atof(field.c_str());
+                }
+                pos++;
+            }
+            loc_map[id] = loc;
+        }
+
+        auto stim_loc_data = curr_clamp.stim_loc.get_data();
+        auto stim_loc_cols = stim_loc_data.front();
+
+        for(auto it = stim_loc_data.begin()+1; it < stim_loc_data.end(); it++) {
+            param_info param;
+            unsigned pos = 0, id;
+
+            for (auto field: *it) {
+                if(stim_loc_cols[pos] == "electrode_id") {
+                    id = std::atoi(field.c_str());
+                } else if (stim_loc_cols[pos] == "dur") {
+                    param.dur = std::atof(field.c_str());
+                } else if (stim_loc_cols[pos] == "amp") {
+                    param.amp = std::atof(field.c_str());
+                } else if (stim_loc_cols[pos] == "delay") {
+                    param.delay = std::atof(field.c_str());
+                }
+                pos++;
+            }
+            param_map[id] = param;
+        }
+
+        for (auto i: loc_map) {
+            if (param_map.find(i.first) != param_map.end()) {
+                auto params = param_map.at(i.first);
+
+                auto local_loc = i.second;
+                auto global_gid = globalize_cell({local_loc.gid, nodes_.map()[local_loc.population]});
+
+                current_clamps_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
+            }
+            else {
+                throw sonata_exception("Electrode id has no corresponding input description");
+            }
+        };
+    }
+}
 
 void database::build_source_and_target_maps(const std::vector<arb::group_description>& groups) {
     // Build loc_source_gids and loc_source_sizes
@@ -94,7 +145,7 @@ void database::build_source_and_target_maps(const std::vector<arb::group_descrip
             std::vector<source_type> src_vec(src_set.begin(), src_set.end());
             std::sort(src_vec.begin(), src_vec.end(), [](const auto &a, const auto& b) -> bool
             {
-                return std::tie(a.segment, a.position, a.threshold) < std::tie(b.segment, b.position, b.threshold);
+                return std::tie(a.segment, a.position) < std::tie(b.segment, b.position);
             });
 
             loc_sources.insert(loc_sources.end(), src_vec.begin(), src_vec.end());
@@ -165,8 +216,8 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
                 auto loc = std::lower_bound(source_maps_[source_gid].begin(), source_maps_[source_gid].end(), src_rng[s],
                                             [](const auto& lhs, const auto& rhs) -> bool
                                             {
-                                                return std::tie(lhs.segment, lhs.position, lhs.threshold) <
-                                                       std::tie(rhs.segment, rhs.position, rhs.threshold);
+                                                return std::tie(lhs.segment, lhs.position) <
+                                                       std::tie(rhs.segment, rhs.position);
                                             });
 
                 if (loc != source_maps_[source_gid].end()) {
@@ -214,11 +265,11 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
 }
 
 void database::get_sources_and_targets(cell_gid_type gid,
-                                       std::vector<std::pair<segment_location, double>>& src,
+                                       std::vector<segment_location>& src,
                                        std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) {
     src.reserve(source_maps_[gid].size());
     for (auto s: source_maps_[gid]) {
-        src.push_back(std::make_pair(segment_location(s.segment, s.position), s.threshold));
+        src.push_back(segment_location(s.segment, s.position));
     }
 
     tgt.reserve(target_maps_[gid].size());
@@ -252,6 +303,17 @@ arb::morphology database::get_cell_morphology(cell_gid_type gid) {
     return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
 }
 
+arb::cell_kind database::get_cell_kind(cell_gid_type gid) {
+    auto loc_node = localize_cell(gid);
+    auto node_pop_id = loc_node.pop_id;
+    auto node_id = loc_node.el_id;
+
+    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto node_pop_name = nodes_[node_pop_id].name();
+
+    return node_types_.get_cell_kind(type_pop_id(node_type_tag, node_pop_name));
+}
+
 std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_density_mechs(cell_gid_type gid) {
     auto loc_node = localize_cell(gid);
     auto node_pop_id = loc_node.pop_id;
@@ -274,16 +336,44 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
             if (nodes_[node_pop_id].find_group(std::to_string(nodes_grp_id)) != -1) {
                 auto lgi = nodes_[node_pop_id].find_group(std::to_string(nodes_grp_id));
                 auto group = nodes_[node_pop_id][lgi];
-                if (group.find_dataset(gp_var_id) != -1) {
-                    auto value = group.double_at(gp_var_id, nodes_grp_idx);
-                    density_vars[gp_id][var_id] = value;
+                if (group.find_group("dynamics_params") != -1) {
+                    auto dpi = group.find_group("dynamics_params");
+                    auto dyn_params = group[dpi];
+                    if (dyn_params.find_dataset(gp_var_id) != -1) {
+                        auto value = dyn_params.double_at(gp_var_id, nodes_grp_idx);
+                        density_vars[gp_id][var_id] = value;
+                    }
                 }
-
             }
         }
     }
     return node_types_.density_mech_desc(type_pop_id(nodes_type_tag, nodes_pop_name), std::move(density_vars));
 }
+
+std::vector<double> database::get_spikes(cell_gid_type gid) {
+    std::vector<double> spike_times;
+
+    auto loc_cell = localize_cell(gid);
+
+    for (auto sp: spikes_) {
+        if (nodes_[loc_cell.pop_id].name() != sp.population) {
+            continue;
+        }
+
+        auto spike_idx = sp.data.find_group("spikes");
+        if (spike_idx == -1) {
+            throw sonata_exception("Input spikes file doesn't have top level group \"spikes\"");
+        }
+        auto range = sp.data[spike_idx].int_pair_at("gid_to_range", loc_cell.el_id);
+
+        auto spk_times = sp.data[spike_idx].double_range("timestamps", range.first, range.second);
+
+        spike_times.insert(spike_times.end(), spk_times.begin(), spk_times.end());
+    }
+
+    std::sort(spike_times.begin(), spike_times.end());
+    return spike_times;
+};
 
 unsigned database::num_sources(cell_gid_type gid) {
     return source_maps_[gid].size();
@@ -312,11 +402,10 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
         auto loc_grp_id = edges_grp_id[i];
 
         int source_branch;
-        double source_pos, threshold;
+        double source_pos;
 
         bool found_source_branch = false;
         bool found_source_pos = false;
-        bool found_threshold =false;
 
         // if the edges are in groups, for each edge find the group, if it exists
         if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
@@ -332,10 +421,6 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
                 source_pos = group.double_at("efferent_section_pos", loc_grp_idx);
                 found_source_pos = true;
             }
-            if (group.find_dataset("threshold") != -1) {
-                threshold = group.double_at("threshold", loc_grp_idx);
-                found_threshold = true;
-            }
         }
 
         // name and index of edge_type_id
@@ -347,11 +432,8 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
         if (!found_source_pos) {
             source_pos = std::atof(e_fields["efferent_section_pos"].c_str());
         }
-        if (!found_threshold) {
-            threshold = std::atof(e_fields["threshold"].c_str());
-        }
 
-        ret.emplace_back((unsigned)source_branch, source_pos, threshold);
+        ret.emplace_back((unsigned)source_branch, source_pos);
     }
     return ret;
 }
