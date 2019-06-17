@@ -5,19 +5,10 @@ ENABLE_LANGUAGE(C)
 cmake_policy(SET CMP0074 NEW)
 set (CMAKE_CXX_STANDARD 14)
 
-# When arbor PR is in, this will become find_package(arbor REQUIRED MPI)
 find_package(MPI REQUIRED CXX)
 find_package(arbor REQUIRED)
 find_package(HDF5 REQUIRED)
-add_executable(
-        sonata
-        sonata/sonata.cpp
-        sonata/data_management_lib.cpp
-        sonata/include/dynamics_params_helper.cpp)
 
-target_link_libraries(sonata PRIVATE arbor::arbor arbor::arborenv ${HDF5_C_LIBRARIES})
-target_include_directories(sonata PRIVATE common/cpp/include ${HDF5_INCLUDE_DIRS} ${MPI_CXX_INCLUDE_PATH})
+add_subdirectory(test)
+add_subdirectory(example)
 
-set_target_properties(sonata PROPERTIES OUTPUT_NAME arbor-sonata)
-
-install(TARGETS sonata DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

@@ -35,14 +35,19 @@ namespace std {
 }
 
 class csv_file {
-    std::string fileName;
+    std::string filename;
     char delimeter;
     std::vector<std::vector<std::string>> data;
 
 public:
-    csv_file(std::string filename, char delm = ',') :
-            fileName(filename), delimeter(delm) {
-        std::ifstream file(fileName);
+    csv_file(std::string name, char delm = ',') :
+            filename(name), delimeter(delm) {
+        std::ifstream file(name);
+
+        if (!file.good()) {
+            throw std::runtime_error("Unable to open csv file: " + name);
+        }
+
         std::string line;
 
         while (getline(file, line)) {
@@ -63,7 +68,7 @@ public:
     }
 
     std::string name() {
-        return fileName;
+        return filename;
     }
 };
 
