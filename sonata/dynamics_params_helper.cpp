@@ -5,8 +5,8 @@
 #include <arbor/segment.hpp>
 #include <common/json_params.hpp>
 
-#include "sonata_excpetions.hpp"
-#include "density_mech_helper.hpp"
+#include "include/sonata_excpetions.hpp"
+#include "include/density_mech_helper.hpp"
 
 arb::mechanism_desc read_dynamics_params_point(std::string fname) {
     std::ifstream f(fname);

@@ -1,0 +1,4 @@
+id,name,var_a,var_b,var_c
+0,foo_0,0,0.5,zero
+1,foo_1,1,1.2,one
+2,foo_2,2,2.6,two

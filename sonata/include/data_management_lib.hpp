@@ -8,11 +8,10 @@
 #include <string>
 #include <unordered_set>
 
-#include "include/hdf5_lib.hpp"
-#include "include/csv_lib.hpp"
-#include "include/sonata_excpetions.hpp"
-#include "include/common_structs.hpp"
-
+#include "hdf5_lib.hpp"
+#include "csv_lib.hpp"
+#include "sonata_excpetions.hpp"
+#include "common_structs.hpp"
 
 using arb::cell_gid_type;
 using arb::cell_lid_type;

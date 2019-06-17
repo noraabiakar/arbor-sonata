@@ -1,8 +1,8 @@
 #include <arbor/version.hpp>
 #include <arbor/mechcat.hpp>
 
-#include "data_management_lib.hpp"
-#include "include/mpi_helper.hpp"
+#include "include/data_management_lib.hpp"
+#include "mpi_helper.hpp"
 
 using arb::cell_gid_type;
 using arb::cell_lid_type;
