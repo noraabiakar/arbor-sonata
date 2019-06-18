@@ -5,7 +5,7 @@
 #include <arbor/segment.hpp>
 #include <common/json_params.hpp>
 
-#include "include/sonata_excpetions.hpp"
+#include "include/sonata_exceptions.hpp"
 #include "include/density_mech_helper.hpp"
 
 arb::mechanism_desc read_dynamics_params_point(std::string fname) {
@@ -49,8 +49,8 @@ std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(s
     std::unordered_map<std::string, mech_groups> mech_map;
 
     for (auto mech_def: mech_definitions) {
-        std::string mech_id = mech_def.first; //key
-        std::unordered_map<std::string, double> variables;
+        std::string mech_id = mech_def.first; //key: eg. pas_0
+        std::unordered_map<std::string, double> variables; // key -value pairs, can be overwritten
         std::vector<mech_params> mech_details;
 
         auto mech_features = mech_def.second;

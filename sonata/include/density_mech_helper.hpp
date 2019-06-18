@@ -27,7 +27,7 @@ struct mech_params {
 };
 
 struct mech_groups {
-    variable_map variables;
+    variable_map variables; // variables that can be overwritten
     std::vector<mech_params> mech_details;
 
     mech_groups(std::unordered_map<std::string, double> vars, std::vector<mech_params> mech_det) :
@@ -41,6 +41,18 @@ struct mech_groups {
             std::cout << "--------" << std::endl;
             p.print();
             std::cout << "--------" << std::endl;
+        }
+    }
+
+    void apply_variables() {
+        for (auto& det: mech_details) {
+            auto& mech_desc = det.mech;
+            // Get the aliases and set values from overrides
+            for (auto alias: det.param_alias) {
+                if (variables.find(alias.second) != variables.end()) {
+                    mech_desc.set(alias.first, variables.at(alias.second));
+                }
+            }
         }
     }
 };

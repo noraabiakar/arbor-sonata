@@ -6,7 +6,7 @@
 
 #include <hdf5.h>
 
-#include "include/sonata_excpetions.hpp"
+#include "include/sonata_exceptions.hpp"
 #include "include/hdf5_lib.hpp"
 
 #define MAX_NAME 1024
