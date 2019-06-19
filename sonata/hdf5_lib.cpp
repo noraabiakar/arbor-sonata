@@ -307,6 +307,14 @@ std::string h5_group::name() {
 }
 
 ///h5_file methods
+h5_file::h5_file(std::string name):
+        name_(name),
+        file_h_(name),
+        top_group_(std::make_shared<h5_group>(file_h_.id, "/")) {}
+
+std::string h5_file::name() {
+    return name_;
+}
 
 void h5_file::print() {
     std::cout << top_group_->name() << std::endl;
@@ -342,129 +350,122 @@ void h5_file::print() {
     }
 }
 
-h5_file::h5_file(std::string name):
-        file_(name),
-        file_h_(name),
-        top_group_(std::make_shared<h5_group>(file_h_.id, "/")) {}
 
-std::string h5_file::name() {
-    return file_;
-}
-
-///////////////////////////////////////////////////////////
+///h5_wrapper methods
 
 h5_wrapper::h5_wrapper() {}
 
-h5_wrapper::h5_wrapper(const std::shared_ptr<h5_group>& g): ptr(g) {
+h5_wrapper::h5_wrapper(const std::shared_ptr<h5_group>& g): ptr_(g) {
     unsigned i = 0;
-    for (auto d: ptr->datasets_) {
-        dset_map[d->name()] = i++;
+    for (auto d: ptr_->datasets_) {
+        dset_map_[d->name()] = i++;
     }
     i = 0;
-    for (auto g: ptr->groups_) {
-        member_map[g->name()] = i++;
-        members.emplace_back(g);
+    for (auto g: ptr_->groups_) {
+        member_map_[g->name()] = i++;
+        members_.emplace_back(g);
     }
 }
 
 int h5_wrapper::size() {
-    return members.size();
+    return members_.size();
 }
 
-int h5_wrapper::find_group(std::string name) {
-    if (member_map.find(name) != member_map.end()) {
-        return member_map[name];
+int h5_wrapper::find_group(std::string name) const {
+    if (member_map_.find(name) != member_map_.end()) {
+        return member_map_.at(name);
     }
     return -1;
 }
 
-int h5_wrapper::find_dataset(std::string name) {
-    if (dset_map.find(name) != dset_map.end()) {
-        return dset_map[name];
+int h5_wrapper::find_dataset(std::string name) const {
+    if (dset_map_.find(name) != dset_map_.end()) {
+        return dset_map_.at(name);
     }
     return -1;
 }
 
-int h5_wrapper::dataset_size(std::string name) {
-    if (dset_map.find(name) != dset_map.end()) {
-        return ptr->datasets_[dset_map[name]]->size();
+int h5_wrapper::dataset_size(std::string name) const {
+    if (dset_map_.find(name) != dset_map_.end()) {
+        return ptr_->datasets_.at(dset_map_.at(name))->size();
     }
     return -1;
 }
 
-int h5_wrapper::int_at(std::string name, unsigned i) {
+int h5_wrapper::int_at(std::string name, unsigned i) const {
     if (find_dataset(name) != -1) {
-        return ptr->datasets_[dset_map[name]]->int_at(i);
+        return ptr_->datasets_.at(dset_map_.at(name))->int_at(i);
     }
     throw sonata_dataset_exception(name);
 }
 
-double h5_wrapper::double_at(std::string name, unsigned i) {
+double h5_wrapper::double_at(std::string name, unsigned i) const {
     if (find_dataset(name) != -1) {
-        return ptr->datasets_[dset_map[name]]->double_at(i);
+        return ptr_->datasets_.at(dset_map_.at(name))->double_at(i);
     }
     throw sonata_dataset_exception(name);
 }
 
-std::string h5_wrapper::string_at(std::string name, unsigned i) {
+std::string h5_wrapper::string_at(std::string name, unsigned i) const {
     if (find_dataset(name) != -1) {
-        return std::to_string(ptr->datasets_[dset_map[name]]->string_at(i));
+        return std::to_string(ptr_->datasets_.at(dset_map_.at(name))->string_at(i));
     }
     throw sonata_dataset_exception(name);
 }
 
-std::vector<int> h5_wrapper::int_range(std::string name, unsigned i, unsigned j) {
+std::vector<int> h5_wrapper::int_range(std::string name, unsigned i, unsigned j) const {
     if (find_dataset(name)!= -1) {
         if (j - i > 1) {
-            return ptr->datasets_[dset_map[name]]->int_range(i, j);
+            return ptr_->datasets_.at(dset_map_.at(name))->int_range(i, j);
         } else {
-            return {ptr->datasets_[dset_map[name]]->int_at(i)};
+            return {ptr_->datasets_.at(dset_map_.at(name))->int_at(i)};
         }
     }
     throw sonata_dataset_exception(name);
 }
 
-std::vector<double> h5_wrapper::double_range(std::string name, unsigned i, unsigned j) {
+std::vector<double> h5_wrapper::double_range(std::string name, unsigned i, unsigned j) const {
     if (find_dataset(name)!= -1) {
-        return ptr->datasets_[dset_map[name]]->double_range(i, j);
+        return ptr_->datasets_.at(dset_map_.at(name))->double_range(i, j);
     }
     throw sonata_dataset_exception(name);
 }
 
-std::pair<int, int> h5_wrapper::int_pair_at(std::string name, unsigned i) {
+std::pair<int, int> h5_wrapper::int_pair_at(std::string name, unsigned i) const {
     if (find_dataset(name)!= -1) {
-        return ptr->datasets_[dset_map[name]]->int_pair_at(i);
+        return ptr_->datasets_.at(dset_map_.at(name))->int_pair_at(i);
     }
     throw sonata_dataset_exception(name);
 }
 
-std::vector<int> h5_wrapper::int_1d(std::string name) {
+std::vector<int> h5_wrapper::int_1d(std::string name) const {
     if (find_dataset(name)!= -1) {
-        return ptr->datasets_[dset_map[name]]->int_1d();
+        return ptr_->datasets_.at(dset_map_.at(name))->int_1d();
     }
     throw sonata_dataset_exception(name);
 }
 
-std::vector<std::pair<int, int>> h5_wrapper::int_2d(std::string name) {
+std::vector<std::pair<int, int>> h5_wrapper::int_2d(std::string name) const {
     if (find_dataset(name)!= -1) {
-        return ptr->datasets_[dset_map[name]]->int_2d();
+        return ptr_->datasets_.at(dset_map_.at(name))->int_2d();
     }
     throw sonata_dataset_exception(name);
 }
 
-h5_wrapper h5_wrapper::operator [](unsigned i) const {
-    if (i < members.size() && i >= 0) {
-        return members[i];
+const h5_wrapper& h5_wrapper::operator [](unsigned i) const {
+    if (i < members_.size() && i >= 0) {
+        return members_.at(i);
     }
     throw sonata_exception("h5_wrapper index out of range");
 }
 
-std::string h5_wrapper::name() {
-    return ptr->name();
+std::string h5_wrapper::name() const {
+    return ptr_->name();
 }
 
+///h5_record methods
 
-hdf5_record::hdf5_record(const std::vector<std::shared_ptr<h5_file>>& files) {
+h5_record::h5_record(const std::vector<std::shared_ptr<h5_file>>& files) : files_(files) {
     unsigned idx = 0;
     partition_.push_back(0);
     for (auto f: files) {
@@ -489,7 +490,7 @@ hdf5_record::hdf5_record(const std::vector<std::shared_ptr<h5_file>>& files) {
     }
 }
 
-void hdf5_record::verify_edges() {
+bool h5_record::verify_edges() {
     for (auto& p: populations()) {
         if (p.find_group("indicies") == -1) {
             throw sonata_exception("indicies group must be available in all edge population groups ");
@@ -502,9 +503,10 @@ void hdf5_record::verify_edges() {
                                         "ids are automatically assigned contiguously starting from 0");
         }
     }
+    return true;
 }
 
-void hdf5_record::verify_nodes() {
+bool h5_record::verify_nodes() {
     for (auto& p: populations()) {
         if (p.find_dataset("node_type_id") == -1) {
             throw sonata_exception("node_type_id dataset not provided in node populations");
@@ -514,32 +516,33 @@ void hdf5_record::verify_nodes() {
                                         "ids are automatically assigned contiguously starting from 0");
         }
     }
+    return true;
 }
 
-int hdf5_record::num_elements() const {
+int h5_record::num_elements() const {
     return num_elements_;
 }
 
-h5_wrapper hdf5_record::operator [](std::string i) const {
+const h5_wrapper& h5_record::operator [](std::string i) const {
     return populations_[map_.at(i)];
 }
 
-h5_wrapper hdf5_record::operator [](int i) const {
+const h5_wrapper& h5_record::operator [](int i) const {
     return populations_[i];
 }
 
-std::vector<h5_wrapper> hdf5_record::populations() const {
+std::vector<h5_wrapper> h5_record::populations() const {
     return populations_;
 }
 
-std::vector<unsigned> hdf5_record::partitions() const {
+std::vector<unsigned> h5_record::partitions() const {
     return partition_;
 }
 
-std::unordered_map<std::string, unsigned> hdf5_record::map() const {
+std::unordered_map<std::string, unsigned> h5_record::map() const {
     return map_;
 }
 
-std::vector<std::string> hdf5_record::pop_names() const {
+std::vector<std::string> h5_record::pop_names() const {
     return pop_names_;
 }

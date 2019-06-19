@@ -21,8 +21,8 @@ using arb::segment_location;
 
 class database {
 public:
-    database(hdf5_record nodes,
-             hdf5_record edges,
+    database(h5_record nodes,
+             h5_record edges,
              csv_node_record node_types,
              csv_edge_record edge_types,
              std::vector<spike_info> spikes,
@@ -158,8 +158,8 @@ private:
         return source_edge_pops;
     }
 
-    hdf5_record nodes_;
-    hdf5_record edges_;
+    h5_record nodes_;
+    h5_record edges_;
     csv_node_record node_types_;
     csv_edge_record edge_types_;
 

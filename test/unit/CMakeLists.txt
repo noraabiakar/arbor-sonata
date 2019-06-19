@@ -1,6 +1,7 @@
 # Build mechanisms used solely in unit tests.
 set(unit_sources
     test_csv.cpp
+    test_hdf5.cpp
 
     # unit test driver
     test.cpp

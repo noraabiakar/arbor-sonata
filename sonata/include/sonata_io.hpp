@@ -13,10 +13,10 @@
 using h5_file_handle = std::shared_ptr<h5_file>;
 
 struct network_params {
-    hdf5_record nodes;
+    h5_record nodes;
     csv_node_record nodes_types;
 
-    hdf5_record edges;
+    h5_record edges;
     csv_edge_record edges_types;
 
     network_params(std::vector<h5_file_handle> nodes_h5,
