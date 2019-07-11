@@ -149,7 +149,7 @@ TEST(csv_edge_record, constructor) {
     auto f = csv_file(filename);
     auto r = csv_edge_record({f});
 
-    type_pop_id t0({100, "pop_e_e"});
+    type_pop_id t0({105, "pop_e_e"});
     type_pop_id t1({101, "pop_i_e"});
     type_pop_id t2({102, "pop_i_i"});
     type_pop_id t3({103, "pop_e_i"});

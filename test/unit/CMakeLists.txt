@@ -2,6 +2,7 @@
 set(unit_sources
     test_csv.cpp
     test_hdf5.cpp
+    test_databse.cpp
 
     # unit test driver
     test.cpp

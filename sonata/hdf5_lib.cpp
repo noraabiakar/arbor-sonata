@@ -459,6 +459,14 @@ const h5_wrapper& h5_wrapper::operator [](unsigned i) const {
     throw sonata_exception("h5_wrapper index out of range");
 }
 
+const h5_wrapper& h5_wrapper::operator [](std::string name) const {
+    auto gid = find_group(name);
+    if (gid != -1) {
+        return members_.at(gid);
+    }
+    throw sonata_exception("h5_wrapper index out of range");
+}
+
 std::string h5_wrapper::name() const {
     return ptr_->name();
 }
@@ -523,8 +531,11 @@ int h5_record::num_elements() const {
     return num_elements_;
 }
 
-const h5_wrapper& h5_record::operator [](std::string i) const {
-    return populations_[map_.at(i)];
+const h5_wrapper& h5_record::operator [](std::string name) const {
+    if (map_.find(name) == map_.end()) {
+        throw sonata_exception("population not present in hdf5 file");
+    }
+    return populations_[map_.at(name)];
 }
 
 const h5_wrapper& h5_record::operator [](int i) const {

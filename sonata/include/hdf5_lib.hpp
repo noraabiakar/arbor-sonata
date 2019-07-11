@@ -174,8 +174,11 @@ public:
     // Returns h5_wrapper of group at index i in members_
     const h5_wrapper& operator[] (unsigned i) const;
 
+    // Returns h5_wrapper of group with name `name` in members_
+    const h5_wrapper& operator[] (std::string name) const;
+
     // Returns name of the wrapped h5_group
-    std::string name() const ;
+    std::string name() const;
 
 private:
     // Pointer to the h5_group wrapped in h5_wrapper
