@@ -27,89 +27,89 @@ public:
              csv_edge_record edge_types,
              std::vector<spike_info> spikes,
              std::vector<current_clamp_info> current_clamp):
-    nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types), spikes_(spikes) {
-        build_current_clamp_map(current_clamp);
+    nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types) {
+        read_spike_times(spikes);
+        read_current_clamps(current_clamp);
     }
 
-    std::vector<unsigned> pop_partitions() const {
-        return nodes_.partitions();
-    }
+    /// Simple queries
 
-    std::vector<std::string> pop_names() const {
-        return nodes_.pop_names();
-    }
+    cell_size_type num_cells() const;
 
-    std::string population_of(cell_gid_type gid) {
-        for (unsigned i = 0; i < nodes_.partitions().size(); i++) {
-            if (gid < nodes_.partitions()[i]) {
-                return nodes_.populations()[i-1].name();
-            }
-        }
-    }
+    cell_size_type num_edges() const;
 
-    unsigned population_id_of(cell_gid_type gid) {
-        for (unsigned i = 0; i < nodes_.partitions().size(); i++) {
-            if (gid < nodes_.partitions()[i]) {
-                return gid - nodes_.partitions()[i-1];
-            }
-        }
-    }
+    cell_size_type num_sources(cell_gid_type gid) const;
 
-    cell_size_type num_cells() {
-        return nodes_.num_elements();
-    }
+    cell_size_type num_targets(cell_gid_type gid) const;
 
-    cell_size_type num_edges() {
-        return edges_.num_elements();
-    }
+    std::vector<unsigned> pop_partitions() const;
 
+    std::vector<std::string> pop_names() const;
+
+    std::string population_of(cell_gid_type gid) const;
+
+    unsigned population_id_of(cell_gid_type gid) const;
+
+
+    /// Fill member maps
+
+    // Queries hdf5/csv records as needed to build (with correct overrides)all needed
+    // information to form a cell_connection.
+    // This includes source and target locations (gid, branch id, branch position)
+    // weight/delay of the connection and point mechanism with all parameters set
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
 
-    void build_current_clamp_map(std::vector<current_clamp_info> current);
+    void read_current_clamps(std::vector<current_clamp_info> current);
 
-    void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
+    void read_spike_times(std::vector<spike_info> spikes);
 
-    void get_sources_and_targets(cell_gid_type gid,
-                                 std::vector<segment_location>& src,
-                                 std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt);
+    /// Read maps
 
-    std::vector<current_clamp> get_current_clamps(cell_gid_type gid) {
-        if (current_clamps_.find(gid) != current_clamps_.end()) {
-            return current_clamps_.at(gid);
-        }
-        return {};
-    };
+    std::vector<current_clamp> get_current_clamps(cell_gid_type gid) const;
 
-    std::vector<double> get_spikes(cell_gid_type gid);
+    std::vector<double> get_spikes(cell_gid_type gid) const;
 
+    void get_sources_and_targets(cell_gid_type gid, std::vector<segment_location>& src,
+                                 std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) const;
+
+
+    // Look for morphology file in hdf5 file; if not found, use the default morphology from the node csv file
     arb::morphology get_cell_morphology(cell_gid_type gid);
 
+    // Get cell_kind from the node csv file
     arb::cell_kind get_cell_kind(cell_gid_type gid);
 
-    // Returns section -> mechanisms
+    // Looks for edges with target == gid, creates the connections
+    void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
+
+    // Queries csv/hdf5 records as needed to get a cell's density mechanisms (with correct parameter overrides)
+    // Returns a map from section name (soma, dend, etc) to a vector of mechanism_desc
     std::unordered_map<std::string, std::vector<arb::mechanism_desc>> get_density_mechs(cell_gid_type);
 
-    unsigned num_sources(cell_gid_type gid);
-    unsigned num_targets(cell_gid_type gid);
+    /// Read relevant information from the relevant hdf5 file in ranges and aggregate in convenient structs
 
-private:
-
-    /* Read relevant information from HDF5 or CSV */
     std::vector<source_type> source_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range);
     std::vector<target_type> target_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range);
     std::vector<double> weight_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range);
     std::vector<double> delay_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range);
 
 
+private:
     h5_record nodes_;
     h5_record edges_;
     csv_node_record node_types_;
     csv_edge_record edge_types_;
 
-    std::unordered_map<cell_gid_type, std::vector<current_clamp>> current_clamps_;
-    std::vector<spike_info> spikes_;
+    // Map from gid to vector of current_clamp descriptors
+    std::unordered_map<cell_gid_type, std::vector<current_clamp>> current_clamp_map_;
 
+    // Map from gid to vector of time stamps of input spikes
+    std::unordered_map<cell_gid_type, std::vector<double>> spike_map_;
+
+    // Map from gid to vector of source_type on the cell
     std::unordered_map<cell_gid_type, std::vector<source_type>> source_maps_;
+
+    // Map from gid to vector of target_type, gid on the cell
     std::unordered_map<cell_gid_type, std::vector<std::pair<target_type, unsigned>>> target_maps_;
 };
 
