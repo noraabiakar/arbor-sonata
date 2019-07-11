@@ -37,6 +37,12 @@ TEST(csv_node_record, constructor) {
     type_pop_id t1({101, "pop_i"});
     type_pop_id t2({200, "pop_ext"});
 
+    auto ids = r.unique_ids();
+    EXPECT_EQ(3, ids.size());
+    EXPECT_EQ(t0, ids[0]);
+    EXPECT_EQ(t1, ids[1]);
+    EXPECT_EQ(t2, ids[2]);
+
     EXPECT_EQ(arb::cell_kind::cable, r.cell_kind(t0));
     EXPECT_EQ(arb::cell_kind::cable, r.cell_kind(t1));
     EXPECT_EQ(arb::cell_kind::spike_source, r.cell_kind(t2));
@@ -172,4 +178,118 @@ TEST(csv_edge_record, constructor) {
 
     EXPECT_EQ(0, p0.get("e"));
     EXPECT_EQ(2.0, p0.get("tau"));
+
+    std::vector<std::pair<std::string, std::string>> expected_e2s_popi= {{"pop_e_i", "pop_e"}, {"pop_i_i", "pop_i"}};
+    std::vector<std::pair<std::string, std::string>> expected_e2s_pope= {{"pop_e_e", "pop_e"}, {"pop_i_e", "pop_i"}, {"pop_ext_e","pop_ext"}};
+
+    auto e2s_popi = r.edge_to_source_of_target("pop_i");
+    EXPECT_EQ(2, e2s_popi.size());
+
+    auto e2s_pope = r.edge_to_source_of_target("pop_e");
+    EXPECT_EQ(3, e2s_pope.size());
+
+    auto e2s_popext = r.edge_to_source_of_target("pop_ext");
+    EXPECT_EQ(0, e2s_popext.size());
+
+    for (auto i : e2s_pope) {
+        bool found = 0;
+        for (auto j: expected_e2s_pope) {
+            if (i == j) {
+                found = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(found);
+    }
+
+    for (auto i : e2s_popi) {
+        bool found = 0;
+        for (auto j: expected_e2s_popi) {
+            if (i == j) {
+                found = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(found);
+    }
+
+    std::unordered_set<std::string> expected_s_pope  = {{"pop_e_e"}, {"pop_e_i"}};
+    std::unordered_set<std::string> expected_s_popi  = {{"pop_i_e"}, {"pop_i_i"}};
+    std::unordered_set<std::string> expected_s_popext  = {{"pop_ext_e"}};
+
+    auto s_popi = r.edges_of_source("pop_i");
+    EXPECT_EQ(2, s_popi.size());
+
+    auto s_pope = r.edges_of_source("pop_e");
+    EXPECT_EQ(2, s_pope.size());
+
+    auto s_popext = r.edges_of_source("pop_ext");
+    EXPECT_EQ(1, s_popext.size());
+
+    for (auto i : s_pope) {
+        bool found = 0;
+        for (auto j: expected_s_pope) {
+            if (i == j) {
+                found = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(found);
+    }
+
+    for (auto i : s_popi) {
+        bool found = 0;
+        for (auto j: expected_s_popi) {
+            if (i == j) {
+                found = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(found);
+    }
+
+    for (auto i : s_popext) {
+        bool found = 0;
+        for (auto j: expected_s_popext) {
+            if (i == j) {
+                found = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(found);
+    }
+
+    std::unordered_set<std::string> expected_t_pope  = {{"pop_e_e"}, {"pop_i_e"}, {"pop_ext_e"}};
+    std::unordered_set<std::string> expected_t_popi  = {{"pop_e_i"}, {"pop_i_i"}};
+
+    auto t_popi = r.edges_of_target("pop_i");
+    EXPECT_EQ(2, t_popi.size());
+
+    auto t_pope = r.edges_of_target("pop_e");
+    EXPECT_EQ(3, t_pope.size());
+
+    auto t_popext = r.edges_of_target("pop_ext");
+    EXPECT_EQ(0, t_popext.size());
+
+    for (auto i : t_pope) {
+        bool found = 0;
+        for (auto j: expected_t_pope) {
+            if (i == j) {
+                found = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(found);
+    }
+
+    for (auto i : t_popi) {
+        bool found = 0;
+        for (auto j: expected_t_popi) {
+            if (i == j) {
+                found = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(found);
+    }
 }
