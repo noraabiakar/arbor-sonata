@@ -43,6 +43,20 @@ TEST(hdf5_record, verify_nodes) {
 
     EXPECT_EQ(r[0].name(), r["pop_e"].name());
     EXPECT_EQ(r[1].name(), r["pop_i"].name());
+
+    for (unsigned i = 0; i < 4; i++) {
+        auto l = r.localize(i);
+        EXPECT_EQ("pop_e", l.pop_name);
+        EXPECT_EQ(i, l.el_id);
+    }
+    auto l = r.localize(4);
+    EXPECT_EQ("pop_i", l.pop_name);
+    EXPECT_EQ(0, l.el_id);
+
+    for (unsigned i = 0; i < 4; i++) {
+        EXPECT_EQ(i, r.globalize({"pop_e", i}));
+    }
+    EXPECT_EQ(4, r.globalize({"pop_i", 0}));
 }
 
 TEST(hdf5_record, verify_edges) {
