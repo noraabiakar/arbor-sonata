@@ -49,7 +49,6 @@ TEST(database, helper_functions) {
     database db(nodes, edges, n_base, e_base, {}, {});
 
     EXPECT_EQ(5, db.num_cells());
-    EXPECT_EQ(4, db.num_edges());
 
     EXPECT_EQ(std::vector<unsigned>({0,4,5}), db.pop_partitions());
     EXPECT_EQ(std::vector<std::string>({"pop_e", "pop_i"}), db.pop_names());
