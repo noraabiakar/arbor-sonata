@@ -58,9 +58,11 @@ public:
     cell_size_type num_cells() {
         return nodes_.num_elements();
     }
+
     cell_size_type num_edges() {
         return edges_.num_elements();
     }
+
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
 
     void build_current_clamp_map(std::vector<current_clamp_info> current);
@@ -98,65 +100,6 @@ private:
     std::vector<double> weight_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range);
     std::vector<double> delay_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range);
 
-    /* Helper functions */
-    struct local_element{
-        cell_gid_type pop_id;
-        cell_gid_type el_id;
-    };
-
-    local_element localize_cell(cell_gid_type gid) {
-        unsigned i = 0;
-        for (; i < nodes_.partitions().size(); i++) {
-            if (gid < nodes_.partitions()[i]) {
-                return {i-1, gid - nodes_.partitions()[i-1]};
-            }
-        }
-        return local_element();
-    }
-
-    cell_gid_type globalize_cell(local_element n) {
-        return n.el_id + nodes_.partitions()[n.pop_id];
-    }
-
-    cell_gid_type globalize_edge(local_element e) {
-        return e.el_id + edges_.partitions()[e.pop_id];
-    }
-
-    std::unordered_map<unsigned, unsigned> edge_to_source_of_target(unsigned target_pop) {
-        std::unordered_map <unsigned, unsigned> edge_to_source;
-
-        for (auto id: edge_types_.unique_ids()) {
-            auto type = edge_types_.fields(id);
-            if (type["target_pop_name"] == nodes_[target_pop].name()) {
-                edge_to_source[edges_.map()[type["pop_name"]]] = nodes_.map()[type["source_pop_name"]];
-            }
-        }
-        return edge_to_source;
-    }
-
-    std::unordered_set<unsigned> edges_of_target(unsigned target_pop) {
-        std::unordered_set<unsigned> target_edge_pops;
-
-        for (auto id: edge_types_.unique_ids()) {
-            auto type = edge_types_.fields(id);
-            if (type["target_pop_name"] == nodes_[target_pop].name()) {
-                target_edge_pops.insert(edges_.map()[type["pop_name"]]);
-            }
-        }
-        return target_edge_pops;
-    }
-
-    std::unordered_set<unsigned> edges_of_source(unsigned source_pop) {
-        std::unordered_set<unsigned> source_edge_pops;
-
-        for (auto id: edge_types_.unique_ids()) {
-            auto type = edge_types_.fields(id);
-            if (type["source_pop_name"] == nodes_[source_pop].name()) {
-                source_edge_pops.insert(edges_.map()[type["pop_name"]]);
-            }
-        }
-        return source_edge_pops;
-    }
 
     h5_record nodes_;
     h5_record edges_;
