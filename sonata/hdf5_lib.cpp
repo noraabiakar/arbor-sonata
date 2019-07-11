@@ -527,6 +527,19 @@ bool h5_record::verify_nodes() {
     return true;
 }
 
+local_element h5_record::localize(unsigned gid) const {
+    for (unsigned i = 0; i < partitions().size(); i++) {
+        if (gid < partitions()[i]) {
+            return {pop_names()[i-1], gid - partitions()[i-1]};
+        }
+    }
+    return local_element();
+}
+
+unsigned h5_record::globalize(local_element n) const {
+    return n.el_id + partitions()[map_.at(n.pop_name)];
+}
+
 int h5_record::num_elements() const {
     return num_elements_;
 }
