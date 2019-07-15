@@ -555,6 +555,14 @@ const h5_wrapper& h5_record::operator [](int i) const {
     return populations_[i];
 }
 
+bool h5_record::find_population(std::string name) const {
+    if(map_.find(name) != map_.end()) {
+        return true;
+    }
+    return false;
+}
+
+
 std::vector<h5_wrapper> h5_record::populations() const {
     return populations_;
 }

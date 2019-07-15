@@ -96,11 +96,11 @@ TEST(hdf5_record, verify_edges) {
 
     EXPECT_EQ(2, r["pop_e_i"].dataset_size("edge_group_id"));
     EXPECT_EQ(0, r["pop_e_i"].int_at("edge_group_id",0));
-    EXPECT_EQ(0, r["pop_e_i"].int_at("edge_group_id",1));
+    EXPECT_EQ(1, r["pop_e_i"].int_at("edge_group_id",1));
 
     EXPECT_EQ(2, r["pop_e_i"].dataset_size("edge_group_index"));
     EXPECT_EQ(0, r["pop_e_i"].int_at("edge_group_index",0));
-    EXPECT_EQ(1, r["pop_e_i"].int_at("edge_group_index",1));
+    EXPECT_EQ(0, r["pop_e_i"].int_at("edge_group_index",1));
 
     EXPECT_EQ(2, r["pop_e_i"].dataset_size("edge_type_id"));
     EXPECT_EQ(103, r["pop_e_i"].int_at("edge_type_id",0));

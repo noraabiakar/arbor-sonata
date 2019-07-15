@@ -225,6 +225,9 @@ public:
     // Returns the population at index `i` in populations_
     const h5_wrapper& operator [](int i) const;
 
+    // Returns true if `name` present in map_
+    bool find_population(std::string name) const;
+
     // Returns names of all populations_
     std::vector<std::string> pop_names() const;
 
