@@ -170,14 +170,19 @@ TEST(csv_edge_record, constructor) {
     EXPECT_EQ(p0.name(), p1.name());
     EXPECT_EQ(p0.values(), p1.values());
 
+    EXPECT_EQ(p0.name(), p4.name());
+    EXPECT_EQ(0, p4.values().size());
+
     EXPECT_EQ(p2.name(), p3.name());
     EXPECT_EQ(p2.values(), p3.values());
 
-    EXPECT_EQ(p2.name(), p0.name());
-    EXPECT_EQ(p2.values(), p0.values());
-
     EXPECT_EQ(0, p0.get("e"));
     EXPECT_EQ(2.0, p0.get("tau"));
+
+    EXPECT_EQ(0.1, p2.get("e"));
+    EXPECT_EQ(0.5, p2.get("tau1"));
+    EXPECT_EQ(0.6, p2.get("tau2"));
+
 
     std::vector<std::pair<std::string, std::string>> expected_e2s_popi= {{"pop_e_i", "pop_e"}, {"pop_i_i", "pop_i"}};
     std::vector<std::pair<std::string, std::string>> expected_e2s_pope= {{"pop_e_e", "pop_e"}, {"pop_i_e", "pop_i"}, {"pop_ext_e","pop_ext"}};

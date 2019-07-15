@@ -67,39 +67,43 @@ void database::build_source_and_target_maps(const std::vector<arb::group_descrip
             auto target_edge_pops = edge_types_.edges_of_target(loc_node.pop_name);
 
             for (auto edge_pop_name: source_edge_pops) {
-                auto edge_pop = edges_.map()[edge_pop_name];
-                auto ind_id = edges_[edge_pop].find_group("indicies");
-                auto s2t_id = edges_[edge_pop][ind_id].find_group("source_to_target");
-                auto n2r_range = edges_[edge_pop][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+                if (edges_.find_population(edge_pop_name)) {
+                    auto edge_pop = edges_.map()[edge_pop_name];
+                    auto ind_id = edges_[edge_pop].find_group("indicies");
+                    auto s2t_id = edges_[edge_pop][ind_id].find_group("source_to_target");
+                    auto n2r_range = edges_[edge_pop][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
 
-                for (auto j = n2r_range.first; j< n2r_range.second; j++) {
-                    auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
-                    auto src_rng = source_range(edge_pop, r2e);
-                    for (auto s: src_rng) {
-                        auto loc = src_set.find(s);
-                        if (loc == src_set.end()) {
-                            src_set.insert(s);
+                    for (auto j = n2r_range.first; j < n2r_range.second; j++) {
+                        auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
+                        auto src_rng = source_range(edge_pop, r2e);
+                        for (auto s: src_rng) {
+                            auto loc = src_set.find(s);
+                            if (loc == src_set.end()) {
+                                src_set.insert(s);
+                            }
                         }
                     }
                 }
             }
 
             for (auto edge_pop_name: target_edge_pops) {
-                auto edge_pop = edges_.map()[edge_pop_name];
+                if (edges_.find_population(edge_pop_name)) {
+                    auto edge_pop = edges_.map()[edge_pop_name];
 
-                auto ind_id = edges_[edge_pop].find_group("indicies");
-                auto t2s_id = edges_[edge_pop][ind_id].find_group("target_to_source");
-                auto n2r = edges_[edge_pop][ind_id][t2s_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
-                for (auto j = n2r.first; j< n2r.second; j++) {
-                    auto r2e = edges_[edge_pop][ind_id][t2s_id].int_pair_at("range_to_edge_id", j);
+                    auto ind_id = edges_[edge_pop].find_group("indicies");
+                    auto t2s_id = edges_[edge_pop][ind_id].find_group("target_to_source");
+                    auto n2r = edges_[edge_pop][ind_id][t2s_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+                    for (auto j = n2r.first; j < n2r.second; j++) {
+                        auto r2e = edges_[edge_pop][ind_id][t2s_id].int_pair_at("range_to_edge_id", j);
 
-                    auto tgt_rng = target_range(edge_pop, r2e);
+                        auto tgt_rng = target_range(edge_pop, r2e);
 
-                    std::vector<unsigned> edge_rng(r2e.second - r2e.first);
-                    std::iota(edge_rng.begin(), edge_rng.end(), r2e.first);
+                        std::vector<unsigned> edge_rng(r2e.second - r2e.first);
+                        std::iota(edge_rng.begin(), edge_rng.end(), r2e.first);
 
-                    for (unsigned k = 0; k < tgt_rng.size(); k++) {
-                        tgt_vec.push_back(std::make_pair(tgt_rng[k], edges_.globalize({edge_pop_name, (cell_gid_type)edge_rng[k]})));
+                        for (unsigned k = 0; k < tgt_rng.size(); k++) {
+                            tgt_vec.push_back(std::make_pair(tgt_rng[k], edges_.globalize({edge_pop_name, (cell_gid_type) edge_rng[k]})));
+                        }
                     }
                 }
             }
@@ -329,74 +333,74 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
     for (auto i: edge_to_source) {
         auto source_pop_name = i.second;
         auto edge_pop_name = i.first;
+        if (edges_.find_population(edge_pop_name)) {
+            auto edge_pop = edges_.map()[i.first];
+            if (!nodes_.find_population(source_pop_name)) {
+                throw sonata_exception("source population of edge population not available");
+            }
+            auto source_pop = nodes_.map()[i.second];
 
-        auto edge_pop = edges_.map()[i.first];
-        auto source_pop = nodes_.map()[i.second];
+            auto ind_id = edges_[edge_pop].find_group("indicies");
+            auto s2t_id = edges_[edge_pop][ind_id].find_group("target_to_source");
+            auto n2r_range = edges_[edge_pop][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
 
-        auto ind_id = edges_[edge_pop].find_group("indicies");
-        auto s2t_id = edges_[edge_pop][ind_id].find_group("target_to_source");
-        auto n2r_range = edges_[edge_pop][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+            for (auto j = n2r_range.first; j < n2r_range.second; j++) {
+                auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
+                auto src_rng = source_range(edge_pop, r2e);
+                auto tgt_rng = target_range(edge_pop, r2e);
+                auto weights = weight_range(edge_pop, r2e);
+                auto delays = delay_range(edge_pop, r2e);
 
-        for (auto j = n2r_range.first; j< n2r_range.second; j++) {
-            auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
-            auto src_rng = source_range(edge_pop, r2e);
-            auto tgt_rng = target_range(edge_pop, r2e);
-            auto weights = weight_range(edge_pop, r2e);
-            auto delays = delay_range(edge_pop, r2e);
+                auto src_id = edges_[edge_pop].int_range("source_node_id", r2e.first, r2e.second);
 
-            auto src_id = edges_[edge_pop].int_range("source_node_id", r2e.first, r2e.second);
+                std::vector<cell_member_type> sources, targets;
 
-            std::vector<cell_member_type> sources, targets;
+                for (unsigned s = 0; s < src_rng.size(); s++) {
+                    auto source_gid = nodes_.globalize({source_pop_name, (cell_gid_type) src_id[s]});
 
-            for(unsigned s = 0; s < src_rng.size(); s++) {
-                auto source_gid = nodes_.globalize({source_pop_name, (cell_gid_type)src_id[s]});
+                    auto loc = std::lower_bound(source_maps_[source_gid].begin(), source_maps_[source_gid].end(),
+                                                src_rng[s],
+                                                [](const auto &lhs, const auto &rhs) -> bool {
+                                                    return std::tie(lhs.segment, lhs.position) <
+                                                           std::tie(rhs.segment, rhs.position);
+                                                });
 
-                auto loc = std::lower_bound(source_maps_[source_gid].begin(), source_maps_[source_gid].end(), src_rng[s],
-                                            [](const auto& lhs, const auto& rhs) -> bool
-                                            {
-                                                return std::tie(lhs.segment, lhs.position) <
-                                                       std::tie(rhs.segment, rhs.position);
-                                            });
-
-                if (loc != source_maps_[source_gid].end()) {
-                    if (*loc == src_rng[s]) {
-                        unsigned index = loc - source_maps_[source_gid].begin();
-                        sources.push_back({source_gid, index});
-                    }
-                    else {
+                    if (loc != source_maps_[source_gid].end()) {
+                        if (*loc == src_rng[s]) {
+                            unsigned index = loc - source_maps_[source_gid].begin();
+                            sources.push_back({source_gid, index});
+                        } else {
+                            throw sonata_exception("source maps initialized incorrectly");
+                        }
+                    } else {
                         throw sonata_exception("source maps initialized incorrectly");
                     }
                 }
-                else {
-                    throw sonata_exception("source maps initialized incorrectly");
-                }
-            }
 
-            unsigned e = 0;
-            for(unsigned t = r2e.first; t < r2e.second; t++, e++) {
-                auto loc = std::lower_bound(target_maps_[gid].begin(), target_maps_[gid].end(),
-                                            std::make_pair(tgt_rng[e], edges_.globalize({edge_pop_name, (cell_gid_type)t})),
-                                            [](const auto& lhs, const auto& rhs) -> bool
-                                            {
-                                                return lhs.second < rhs.second;
-                                            });
+                unsigned e = 0;
+                for (unsigned t = r2e.first; t < r2e.second; t++, e++) {
+                    auto loc = std::lower_bound(target_maps_[gid].begin(), target_maps_[gid].end(),
+                                                std::make_pair(tgt_rng[e],
+                                                               edges_.globalize({edge_pop_name, (cell_gid_type) t})),
+                                                [](const auto &lhs, const auto &rhs) -> bool {
+                                                    return lhs.second < rhs.second;
+                                                });
 
-                if (loc != target_maps_[gid].end()) {
-                    if ((*loc).second == edges_.globalize({edge_pop_name, (cell_gid_type)t})) {
-                        unsigned index = loc - target_maps_[gid].begin();
-                        targets.push_back({gid, index});
-                    }
-                    else {
+                    if (loc != target_maps_[gid].end()) {
+                        if ((*loc).second == edges_.globalize({edge_pop_name, (cell_gid_type) t})) {
+                            unsigned index = loc - target_maps_[gid].begin();
+                            targets.push_back({gid, index});
+                        } else {
+                            throw sonata_exception("target maps initialized incorrectly");
+                        }
+                    } else {
                         throw sonata_exception("target maps initialized incorrectly");
                     }
                 }
-                else {
-                    throw sonata_exception("target maps initialized incorrectly");
-                }
-            }
 
-            for (unsigned k = 0; k < sources.size(); k++) {
-                conns.emplace_back(sources[k], targets[k], weights[k], delays[k]);
+                for (unsigned k = 0; k < sources.size(); k++) {
+                    conns.emplace_back(sources[k], targets[k], weights[k], delays[k]);
+                }
             }
         }
     }
