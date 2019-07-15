@@ -67,11 +67,13 @@ afferent_id = g0.create_dataset("afferent_section_id", (1,), dtype="i")
 afferent_pos = g0.create_dataset("afferent_section_pos", (1,), dtype="f")
 efferent_id = g0.create_dataset("efferent_section_id", (1,), dtype="i")
 efferent_pos = g0.create_dataset("efferent_section_pos", (1,), dtype="f")
+weight = g0.create_dataset("syn_weight", (1,), dtype="f")
 
 afferent_id[0] = 0
 afferent_pos[0] = 0.4
 efferent_id[0] = 1
 efferent_pos[0] = 0.3
+weight[0] = 0.0235
 
 afferent_id = g1.create_dataset("afferent_section_id", (1,), dtype="i")
 afferent_pos = g1.create_dataset("afferent_section_pos", (1,), dtype="f")
@@ -137,6 +139,12 @@ afferent_id[0] = 0
 afferent_pos[0] = 0.5
 efferent_id[0] = 0
 efferent_pos[0] = 0.9
+
+dynamics = g0.create_group("dynamics_params")
+
+e = dynamics.create_dataset("e", (nedges,), dtype="f")
+
+e[0] = 0.51
 
 ##################################################################################
 
