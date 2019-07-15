@@ -581,12 +581,17 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
         }
 
         for (auto p: cat[synapse].parameters) {
-            if (edges_[edge_pop_id].find_group(std::to_string(loc_grp_id)) != -1) {
-                auto lgi = edges_[edge_pop_id].find_group(std::to_string(loc_grp_id));
+            auto lgi = edges_[edge_pop_id].find_group(std::to_string(loc_grp_id));
+            if (lgi != -1) {
                 auto group = edges_[edge_pop_id][lgi];
                 auto loc_grp_idx = edges_grp_idx[i];
-                if (group.find_dataset(p.first) != -1) {
-                    syn_params[p.first] = group.double_at(p.first, loc_grp_idx);
+
+                auto dpi = group.find_group("dynamics_params");
+                if (dpi != -1) {
+                    auto dyn_params = group[dpi];
+                    if (dyn_params.find_dataset(p.first) != -1) {
+                        syn_params[p.first] = dyn_params.double_at(p.first, loc_grp_idx);
+                    }
                 }
             }
         }
