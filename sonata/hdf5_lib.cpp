@@ -106,39 +106,91 @@ auto h5_dataset::double_at(const int i) {
     return r;
 }
 
+//auto h5_dataset::string_at(const int i) {
+//    const hsize_t idx = (hsize_t)i;
+//
+//    // Output
+//    char *out = new char[1];
+//
+//    // Output dimensions 1x1
+//    hsize_t dims = 1;
+//    hsize_t dim_sizes[] = {1};
+//
+//    // Output size
+//    hsize_t num_elements = 1;
+//
+//    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+//    hid_t dspace = H5Dget_space(id_);
+//
+//    H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
+//    hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
+//
+//    auto status = H5Dread(id_, H5T_NATIVE_CHAR, out_mem, dspace, H5P_DEFAULT, out);
+//
+//    H5Sclose(dspace);
+//    H5Sclose(out_mem);
+//    H5Dclose(id_);
+//
+//    if (status < 0) {
+//        throw sonata_dataset_exception(name_, (unsigned)i);
+//    }
+//
+//    int r = out[0];
+//    delete [] out;
+//
+//    return r;
+//}
+
+#define FILE            "meh.h5"
+#define DATASET         "DS1"
+#define DIM0            4
+#define SDIM            8
+
 auto h5_dataset::string_at(const int i) {
-    const hsize_t idx = (hsize_t)i;
+    hid_t       filetype, memtype, dspace, dset;
+    herr_t      status;
+    hsize_t     dims[1] = {size_};
+    size_t      sdim;
+    char **rdata;
 
-    // Output
-    char *out = new char[1];
+    dset =  H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
 
-    // Output dimensions 1x1
-    hsize_t dims = 1;
-    hsize_t dim_sizes[] = {1};
+    filetype = H5Dget_type (dset);
+    sdim = H5Tget_size (filetype);
+    sdim++;                         /* Make room for null terminator */
 
-    // Output size
-    hsize_t num_elements = 1;
+    dspace = H5Dget_space(dset);
+    H5Sget_simple_extent_dims (dspace, dims, NULL);
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    rdata = (char **) malloc (dims[0] * sizeof (char *));
+    rdata[0] = (char *) malloc (dims[0] * sdim * sizeof (char));
 
-    H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
-    hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
+    for (int i=1; i<dims[0]; i++)
+        rdata[i] = rdata[0] + i * sdim;
 
-    auto status = H5Dread(id_, H5T_NATIVE_CHAR, out_mem, dspace, H5P_DEFAULT, out);
+    memtype = H5Tcopy (H5T_C_S1);
+    H5Tset_size (memtype, sdim);
 
-    H5Sclose(dspace);
-    H5Sclose(out_mem);
-    H5Dclose(id_);
+    status = H5Dread(dset, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, rdata[0]);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i);
     }
 
-    int r = out[0];
-    delete [] out;
 
-    return r;
+    for (int j=0; j<dims[0]; j++)
+        printf ("%s[%d]: %s\n", DATASET, j, rdata[j]);
+
+    std::string s(rdata[i]);
+
+    free (rdata[0]);
+    free (rdata);
+    H5Dclose (dset);
+    H5Sclose (dspace);
+    H5Tclose (filetype);
+    H5Tclose (memtype);
+
+    return s;
 }
 
 auto h5_dataset::int_range(const int i, const int j) {
@@ -408,7 +460,7 @@ double h5_wrapper::double_at(std::string name, unsigned i) const {
 
 std::string h5_wrapper::string_at(std::string name, unsigned i) const {
     if (find_dataset(name) != -1) {
-        return std::to_string(ptr_->datasets_.at(dset_map_.at(name))->string_at(i));
+        return ptr_->datasets_.at(dset_map_.at(name))->string_at(i);
     }
     throw sonata_dataset_exception(name);
 }

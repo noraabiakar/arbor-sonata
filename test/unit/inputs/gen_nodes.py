@@ -1,4 +1,5 @@
 import h5py
+import numpy as np
 
 f0 = h5py.File("nodes_0.h5", "a")
 f1 = h5py.File("nodes_1.h5", "a")
@@ -57,11 +58,15 @@ e_pas = dyn_param.create_dataset("pas_0.e_pas", (1,), dtype="f")
 gl_hh = dyn_param.create_dataset("hh_0.gl_hh", (1,), dtype="f")
 el_hh = dyn_param.create_dataset("hh_0.el_hh", (1,), dtype="f")
 
+dt = h5py.special_dtype(vlen=bytes)
+morph = g0.create_dataset("morphology", (1,), dtype='S100')
+
 for i in range(0,1):
     g_pas[i] = .001
     e_pas[i] = -65
     gl_hh[i] = 0.0003
     el_hh[i] = -54.3
+    morph[i] = np.string_("/home/abiakarn/git/arbor-sonata/test/unit/inputs/soma.swc")
 
 f0.close()
 f1.close()
