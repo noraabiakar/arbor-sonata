@@ -101,6 +101,8 @@ TEST(database, source_target_maps) {
         EXPECT_EQ(0, tgts[0].first.segment);
         EXPECT_NEAR(0.5, tgts[0].first.position, 1e-5);
         EXPECT_EQ("expsyn", tgts[0].second.name());
+        EXPECT_NEAR(0.51, tgts[0].second.values().at("e"), 1e-5);
+
 
         srcs.clear();
         tgts.clear();
@@ -185,7 +187,7 @@ TEST(database, connections) {
     EXPECT_EQ(0,conns[0].source.index);
     EXPECT_EQ(4,conns[0].dest.gid);
     EXPECT_EQ(0,conns[0].dest.index);
-    EXPECT_NEAR(0.04,conns[0].weight,1e-5);
+    EXPECT_NEAR(0.0235,conns[0].weight,1e-5);
     EXPECT_NEAR(0.3,conns[0].delay,1e-5);
 
     EXPECT_EQ(2,conns[1].source.gid);
@@ -194,5 +196,22 @@ TEST(database, connections) {
     EXPECT_EQ(1,conns[1].dest.index);
     EXPECT_NEAR(0.04,conns[1].weight,1e-5);
     EXPECT_NEAR(0.3,conns[1].delay,1e-5);
+
+}
+
+TEST(database, types_morphologies) {
+    auto db = simple_network();
+
+    for (auto i = 0; i < 4; i++) {
+        auto morph = db.get_cell_morphology(i);
+        EXPECT_TRUE(morph.has_soma());
+        EXPECT_DOUBLE_EQ(6.30785, morph.soma.r);
+        EXPECT_EQ(1, morph.sections.size());
+    }
+
+    auto morph = db.get_cell_morphology(4);
+    EXPECT_TRUE(morph.has_soma());
+    EXPECT_DOUBLE_EQ(3.5, morph.soma.r);
+    EXPECT_EQ(0, morph.sections.size());
 
 }
