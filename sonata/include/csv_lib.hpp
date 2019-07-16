@@ -75,9 +75,9 @@ public:
     // Returns a map from mechanism names to list of variables and their overrides for a unique node
     std::unordered_map<std::string, variable_map> dynamic_params(type_pop_id id);
 
-    // Returns a map from mechanism names to mechanism decription for a unique node with
+    // Returns a map from section names to mechanism decriptions for a unique node with
     // parameter overrides applied
-    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> density_mech_desc(type_pop_id id);
+    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> density_mech_desc(type_pop_id id, std::unordered_map<std::string, variable_map> override = {});
 
     void override_density_params(type_pop_id id, std::unordered_map<std::string, variable_map> override);
 
