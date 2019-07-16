@@ -152,12 +152,12 @@ std::unordered_map<std::string, variable_map> csv_node_record::dynamic_params(ty
 }
 
 std::unordered_map<std::string, std::vector<arb::mechanism_desc>> csv_node_record::density_mech_desc(
-        type_pop_id id, std::unordered_map<std::string, variable_map> override) {
+        type_pop_id id, std::unordered_map<std::string, variable_map> overrides) {
     std::unordered_map<std::string, std::vector<arb::mechanism_desc>> ret;
 
     std::unordered_map<std::string, mech_groups> density_mechs = density_params_[id];
 
-    for (auto seg_overrides: override) {
+    for (auto seg_overrides: overrides) {
         if (density_mechs.find(seg_overrides.first) != density_mechs.end()) {
             auto& base_id = density_mechs.at(seg_overrides.first);
             auto& base_vars = base_id.variables;
@@ -183,11 +183,11 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> csv_node_recor
     return ret;
 }
 
-void csv_node_record::override_density_params(type_pop_id id, std::unordered_map<std::string, variable_map> override) {
+void csv_node_record::override_density_params(type_pop_id id, std::unordered_map<std::string, variable_map> overrides) {
     auto& base = density_params_[id];
 
     // For every segment in overrides, look for matching segment in base
-    for (auto seg_overrides: override) {
+    for (auto seg_overrides: overrides) {
         if (base.find(seg_overrides.first) != base.end()) {
             auto& base_id = base.at(seg_overrides.first);
             auto& base_vars = base_id.variables;

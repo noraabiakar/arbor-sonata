@@ -24,6 +24,10 @@ database simple_network() {
     auto nodes0 = datadir + "/nodes_0.h5";
     auto nodes1 = datadir + "/nodes_1.h5";
     auto nodes2 = datadir + "/nodes_2.h5";
+    auto spikes0 = datadir + "/spikes_0.h5";
+    auto spikes1 = datadir + "/spikes_1.h5";
+    auto clamp_input = datadir + "/clamp_input.csv";
+    auto clamp_electrode = datadir + "/clamp_electrode.csv";
 
     auto n0 = std::make_shared<h5_file>(nodes0);
     auto n1 = std::make_shared<h5_file>(nodes1);
@@ -52,7 +56,17 @@ database simple_network() {
     auto nf = csv_file(nodes3);
     auto n_base = csv_node_record({nf});
 
-    database db(nodes, edges, n_base, e_base, {}, {});
+    h5_wrapper spike_gp0(h5_file(spikes0).top_group_);
+    h5_wrapper spike_gp1(h5_file(spikes1).top_group_);
+
+    std::vector<spike_info> spike_vec = {{spike_gp0, "pop_e"}, {spike_gp1, "pop_i"}};
+
+    csv_file clamp_in(clamp_input);
+    csv_file clamp_elec(clamp_electrode);
+
+    std::vector<current_clamp_info> clamp_vec = {{clamp_elec, clamp_in}};
+
+    database db(nodes, edges, n_base, e_base, spike_vec, clamp_vec);
 
     return std::move(db);
 }
@@ -296,4 +310,42 @@ TEST(database, density_mechs) {
 
     auto mechs_per_sec = db.get_density_mechs(5);
     EXPECT_EQ(0, mechs_per_sec.size());
+}
+
+TEST(database, spikes) {
+    auto db = simple_network();
+
+    for (unsigned i = 0; i < 4; i++) {
+        auto spikes = db.get_spikes(i);
+
+        std::vector<double> expected;
+        for (auto j = 0; j < 5; j++) {
+            expected.push_back(j*15 + i*15);
+        }
+
+        EXPECT_EQ(expected, spikes);
+    }
+    {
+        auto spikes = db.get_spikes(4);
+        std::vector<double> expected;
+        expected.push_back(37);
+        expected.push_back(54);
+
+        EXPECT_EQ(expected, spikes);
+    }
+    {
+        auto spikes = db.get_spikes(5);
+        EXPECT_TRUE(spikes.empty());
+    }
+}
+
+TEST(database, clamps) {
+    auto db = simple_network();
+
+    auto clamps = db.get_current_clamps(0);
+    EXPECT_EQ(1, clamps.size());
+    EXPECT_EQ(arb::segment_location({0,0.5}), clamps.front().stim_loc);
+    EXPECT_EQ(0, clamps.front().delay);
+    EXPECT_EQ(0.4, clamps.front().amplitude);
+    EXPECT_EQ(5, clamps.front().duration);
 }
