@@ -3,14 +3,17 @@ import h5py
 f0 = h5py.File("edges_0.h5", "a")
 f1 = h5py.File("edges_1.h5", "a")
 f2 = h5py.File("edges_2.h5", "a")
+f3 = h5py.File("edges_3.h5", "a")
 
 edges0 = f0.create_group("edges")
 edges1 = f1.create_group("edges")
 edges2 = f2.create_group("edges")
+edges3 = f3.create_group("edges")
 
 pop_e_i = edges0.create_group("pop_e_i")
 pop_i_e = edges1.create_group("pop_i_e")
 pop_e_e = edges2.create_group("pop_e_e")
+pop_ext_e = edges3.create_group("pop_ext_e")
 
 ##################################################################################
 nedges = 2
@@ -203,6 +206,57 @@ afferent_pos[0] = 0.6
 efferent_id[0] = 1
 efferent_pos[0] = 0.2
 
+##################################################################################
+
+nedges = 2
+nsrcs = 1
+ntgts = 4
+
+edge_group_id = pop_ext_e.create_dataset("edge_group_id", (nedges,), dtype="i")
+edge_group_id[0] = 0
+edge_group_id[1] = 0
+
+edge_group_index = pop_ext_e.create_dataset("edge_group_index", (nedges,), dtype="i")
+edge_group_index[0] = 0
+edge_group_index[1] = 1
+
+edge_type_id = pop_ext_e.create_dataset("edge_type_id", (nedges,), dtype="i")
+edge_type_id[0] = 200
+edge_type_id[1] = 200
+
+source_node_id = pop_ext_e.create_dataset("source_node_id", (nedges,), dtype="i")
+source_node_id[0] = 0
+source_node_id[1] = 0
+
+target_node_id = pop_ext_e.create_dataset("target_node_id", (nedges,), dtype="i")
+target_node_id[0] = 0
+target_node_id[1] = 2
+
+ind = pop_ext_e.create_group("indicies")
+source_to_target = ind.create_group("source_to_target")
+
+node_id_to_ranges = source_to_target.create_dataset("node_id_to_ranges", (nsrcs,2), dtype="i")
+node_id_to_ranges[0] = 0,1
+
+range_to_edge_id = source_to_target.create_dataset("range_to_edge_id", (1,2), dtype="i")
+range_to_edge_id[0] = 0,2
+
+target_to_source = ind.create_group("target_to_source")
+
+node_id_to_ranges = target_to_source.create_dataset("node_id_to_ranges", (ntgts,2), dtype="i")
+node_id_to_ranges[0] = 0,1
+node_id_to_ranges[1] = 1,1
+node_id_to_ranges[2] = 1,2
+node_id_to_ranges[3] = 2,2
+
+range_to_edge_id = target_to_source.create_dataset("range_to_edge_id", (2,2), dtype="i")
+range_to_edge_id[0] = 0,1
+range_to_edge_id[1] = 1,2
+
+
+g0 = pop_ext_e.create_group("0")
+
 f0.close()
 f1.close()
-f1.close()
+f2.close()
+f3.close()
