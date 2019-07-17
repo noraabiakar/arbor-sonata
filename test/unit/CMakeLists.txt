@@ -4,9 +4,9 @@ set(unit_sources
     test_hdf5.cpp
     test_model_desc.cpp
     test_io_desc.cpp
+    test_dynamics.cpp
 
-
-        # unit test driver
+    # unit test driver
     test.cpp
 )
 
