@@ -85,26 +85,16 @@ int main(int argc, char **argv)
 
         // Set up the probes that will measure voltages in the cells.
         std::unordered_map<cell_member_type, trace_info> traces;
-        std::unordered_map<std::string, std::vector<cell_member_type>> trace_groups;
         auto sched = arb::regular_schedule(0.1);
 
-        for (auto g : decomp.groups) {
-            for (auto i : g.gids) {
-                auto num_probes = recipe.num_probes(i);
-                for (unsigned j = 0; j < num_probes; j++) {
-                    auto probe = recipe.get_probe({i,j});
-                    auto probe_address = arb::util::any_cast<cell_probe_address>(probe.address);
+        for (unsigned i = 0; i < recipe.num_cells(); i++) {
+            for (unsigned j = 0; j < recipe.num_probes(i); j++) {
+                auto probe = recipe.get_probe({i,j});
+                auto probe_address = arb::util::any_cast<cell_probe_address>(probe.address);
+                trace_info t(probe_address);
+                traces[{i, j}] = t;
 
-                    trace_info t;
-
-                    t.is_voltage = probe_address.kind == cell_probe_address::membrane_voltage;
-                    t.seg_id = probe_address.location.segment;
-                    t.seg_pos = probe_address.location.position;
-
-                    trace_groups[recipe.get_probe_file({i,j})].push_back({i,j});
-                    traces[{i, j}] = t;
-                    sim.add_sampler(arb::one_probe({i, j}), sched, arb::make_simple_sampler(traces[{i, j}].data));
-                }
+                sim.add_sampler(arb::one_probe({i, j}), sched, arb::make_simple_sampler(traces[{i, j}].data));
             }
         }
 
@@ -135,7 +125,7 @@ int main(int argc, char **argv)
         }
 
         // Write the samples to a json file.
-        if (root) write_trace(traces, trace_groups, recipe.get_pop_names(), recipe.get_pop_partitions());
+        if (root) write_trace(traces, recipe.get_probe_groups(), recipe.get_pop_names(), recipe.get_pop_partitions());
 
         auto report = arb::profile::make_meter_report(meters, context);
         std::cout << report;
