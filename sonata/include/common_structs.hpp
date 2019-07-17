@@ -31,8 +31,12 @@ struct probe_info {
     std::vector<unsigned> node_ids;
     unsigned sec_id;
     double sec_pos;
-
     std::string file_name;
+
+    probe_info() {};
+
+    probe_info(std::string k, std::string pop, std::vector<unsigned> ids, unsigned sid, double spos, std::string file):
+    kind(k), population(pop), node_ids(ids), sec_id(sid), sec_pos(spos), file_name(file) {};
 };
 
 struct current_clamp_info {
