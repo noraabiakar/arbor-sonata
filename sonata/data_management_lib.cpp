@@ -10,43 +10,34 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
-database::database(h5_record nodes,
-                   h5_record edges,
-                   csv_node_record node_types,
-                   csv_edge_record edge_types,
-                   std::vector<spike_info> spikes,
-                   std::vector<current_clamp_info> current_clamp):
-nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types) {
-    build_spike_map(spikes);
-    build_current_clamp_map(current_clamp);
-}
+model_desc::model_desc(h5_record nodes,
+                       h5_record edges,
+                       csv_node_record node_types,
+                       csv_edge_record edge_types):
+nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types) {}
 
 
-cell_size_type database::num_cells() const {
+cell_size_type model_desc::num_cells() const {
     return nodes_.num_elements();
 }
 
-cell_size_type database::num_edges() const {
-    return edges_.num_elements();
-}
-
-cell_size_type database::num_sources(cell_gid_type gid) const {
+cell_size_type model_desc::num_sources(cell_gid_type gid) const {
     return source_maps_.at(gid).size();
 }
 
-cell_size_type database::num_targets(cell_gid_type gid) const {
+cell_size_type model_desc::num_targets(cell_gid_type gid) const {
     return target_maps_.at(gid).size();
 }
 
-std::vector<unsigned> database::pop_partitions() const {
+std::vector<unsigned> model_desc::pop_partitions() const {
     return nodes_.partitions();
 }
 
-std::vector<std::string> database::pop_names() const {
+std::vector<std::string> model_desc::pop_names() const {
     return nodes_.pop_names();
 }
 
-std::string database::population_of(cell_gid_type gid) const {
+std::string model_desc::population_of(cell_gid_type gid) const {
     for (unsigned i = 0; i < nodes_.partitions().size(); i++) {
         if (gid < nodes_.partitions()[i]) {
             return nodes_.populations()[i-1].name();
@@ -54,7 +45,7 @@ std::string database::population_of(cell_gid_type gid) const {
     }
 }
 
-unsigned database::population_id_of(cell_gid_type gid) const {
+unsigned model_desc::population_id_of(cell_gid_type gid) const {
     for (unsigned i = 0; i < nodes_.partitions().size(); i++) {
         if (gid < nodes_.partitions()[i]) {
             return gid - nodes_.partitions()[i-1];
@@ -62,7 +53,7 @@ unsigned database::population_id_of(cell_gid_type gid) const {
     }
 }
 
-void database::build_source_and_target_maps(const std::vector<arb::group_description>& groups) {
+void model_desc::build_source_and_target_maps(const std::vector<arb::group_description>& groups) {
     // Build loc_source_gids and loc_source_sizes
     std::vector<cell_gid_type> loc_source_gids;
     std::vector<unsigned> loc_source_sizes;
@@ -165,128 +156,7 @@ void database::build_source_and_target_maps(const std::vector<arb::group_descrip
     }
 }
 
-void database::build_spike_map(std::vector<spike_info> spikes) {
-    for (unsigned gid = 0; gid < num_cells(); gid++) {
-        std::vector<double> spike_times;
-
-        auto loc_cell = nodes_.localize(gid);
-
-        for (auto sp: spikes) {
-            if (loc_cell.pop_name != sp.population) {
-                continue;
-            }
-
-            auto spike_idx = sp.data.find_group("spikes");
-            if (spike_idx == -1) {
-                throw sonata_exception("Input spikes file doesn't have top level group \"spikes\"");
-            }
-            auto range = sp.data[spike_idx].int_pair_at("gid_to_range", loc_cell.el_id);
-
-            auto spk_times = sp.data[spike_idx].double_range("timestamps", range.first, range.second);
-
-            spike_times.insert(spike_times.end(), spk_times.begin(), spk_times.end());
-        }
-
-        std::sort(spike_times.begin(), spike_times.end());
-        spike_map_.insert({gid, std::move(spike_times)});
-    }
-}
-
-void database::build_current_clamp_map(std::vector<current_clamp_info> current) {
-
-    struct param_info {
-        double dur;
-        double amp;
-        double delay;
-    };
-
-    struct loc_info {
-        cell_gid_type gid;
-        std::string population;
-        unsigned seg;
-        double pos;
-    };
-    for (auto curr_clamp : current){
-        std::unordered_map<unsigned, param_info> param_map;
-        std::unordered_map<unsigned, loc_info> loc_map;
-
-        auto stim_param_data = curr_clamp.stim_params.get_data();
-        auto stim_param_cols = stim_param_data.front();
-
-        for(auto it = stim_param_data.begin()+1; it < stim_param_data.end(); it++) {
-            loc_info loc;
-            unsigned pos = 0, id;
-
-            for (auto field: *it) {
-                if(stim_param_cols[pos] == "electrode_id") {
-                    id = std::atoi(field.c_str());
-                } else if (stim_param_cols[pos] == "node_id") {
-                    loc.gid = std::atoi(field.c_str());
-                } else if (stim_param_cols[pos] == "population") {
-                    loc.population = field;
-                } else if (stim_param_cols[pos] == "sec_id") {
-                    loc.seg = std::atoi(field.c_str());
-                } else if (stim_param_cols[pos] == "seg_x") {
-                    loc.pos = std::atof(field.c_str());
-                }
-                pos++;
-            }
-            loc_map[id] = loc;
-        }
-
-        auto stim_loc_data = curr_clamp.stim_loc.get_data();
-        auto stim_loc_cols = stim_loc_data.front();
-
-        for(auto it = stim_loc_data.begin()+1; it < stim_loc_data.end(); it++) {
-            param_info param;
-            unsigned pos = 0, id;
-
-            for (auto field: *it) {
-                if(stim_loc_cols[pos] == "electrode_id") {
-                    id = std::atoi(field.c_str());
-                } else if (stim_loc_cols[pos] == "dur") {
-                    param.dur = std::atof(field.c_str());
-                } else if (stim_loc_cols[pos] == "amp") {
-                    param.amp = std::atof(field.c_str());
-                } else if (stim_loc_cols[pos] == "delay") {
-                    param.delay = std::atof(field.c_str());
-                }
-                pos++;
-            }
-            param_map[id] = param;
-        }
-
-        for (auto i: loc_map) {
-            if (param_map.find(i.first) != param_map.end()) {
-                auto params = param_map.at(i.first);
-
-                auto local_loc = i.second;
-                auto global_gid = nodes_.globalize({local_loc.population, local_loc.gid});
-
-                current_clamp_map_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
-            }
-            else {
-                throw sonata_exception("Electrode id has no corresponding input description");
-            }
-        };
-    }
-}
-
-std::vector<current_clamp> database::get_current_clamps(cell_gid_type gid) const {
-    if (current_clamp_map_.find(gid) != current_clamp_map_.end()) {
-        return current_clamp_map_.at(gid);
-    }
-    return {};
-};
-
-std::vector<double> database::get_spikes(cell_gid_type gid) const {
-    if (spike_map_.find(gid) != spike_map_.end()) {
-        return spike_map_.at(gid);
-    }
-    return {};
-};
-
-void database::get_sources_and_targets(cell_gid_type gid, std::vector<segment_location>& src,
+void model_desc::get_sources_and_targets(cell_gid_type gid, std::vector<segment_location>& src,
         std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) const {
     src.reserve(source_maps_.at(gid).size());
     for (auto s: source_maps_.at(gid)) {
@@ -299,7 +169,7 @@ void database::get_sources_and_targets(cell_gid_type gid, std::vector<segment_lo
     }
 }
 
-arb::morphology database::get_cell_morphology(cell_gid_type gid) {
+arb::morphology model_desc::get_cell_morphology(cell_gid_type gid) {
     auto loc_node = nodes_.localize(gid);
 
     auto node_pop_name = loc_node.pop_name;
@@ -325,7 +195,7 @@ arb::morphology database::get_cell_morphology(cell_gid_type gid) {
     return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
 }
 
-arb::cell_kind database::get_cell_kind(cell_gid_type gid) {
+arb::cell_kind model_desc::get_cell_kind(cell_gid_type gid) {
     auto loc_node = nodes_.localize(gid);
 
     auto node_pop_name = loc_node.pop_name;
@@ -337,7 +207,7 @@ arb::cell_kind database::get_cell_kind(cell_gid_type gid) {
     return node_types_.cell_kind(type_pop_id(node_type_tag, node_pop_name));
 }
 
-void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns) {
+void model_desc::get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns) {
     // Find cell local index in population
     auto loc_node = nodes_.localize(gid);
     auto edge_to_source = edge_types_.edge_to_source_of_target(loc_node.pop_name);
@@ -418,7 +288,7 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
     }
 }
 
-std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_density_mechs(cell_gid_type gid) {
+std::unordered_map<std::string, std::vector<arb::mechanism_desc>> model_desc::get_density_mechs(cell_gid_type gid) {
     auto loc_node = nodes_.localize(gid);
     auto node_pop_name = loc_node.pop_name;
     auto node_pop_id = nodes_.map()[node_pop_name];
@@ -458,13 +328,11 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
     return node_types_.density_mech_desc(node_unique_id, std::move(density_vars));
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 // Private helper functions
 
 // Read from HDF5 file/ CSV file depending on where the information is available
 
-std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
+std::vector<source_type> model_desc::source_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
     std::vector<source_type> ret;
 
     // First read edge_group_id and edge_group_index and edge_type
@@ -513,7 +381,7 @@ std::vector<source_type> database::source_range(unsigned edge_pop_id, std::pair<
     return ret;
 }
 
-std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
+std::vector<target_type> model_desc::target_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
     std::vector<target_type> ret;
 
     // First read edge_group_id and edge_group_index and edge_type
@@ -617,7 +485,7 @@ std::vector<target_type> database::target_range(unsigned edge_pop_id, std::pair<
     return ret;
 }
 
-std::vector<double> database::weight_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
+std::vector<double> model_desc::weight_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
     std::vector<double> ret;
 
     // First read edge_group_id and edge_group_index and edge_type
@@ -659,7 +527,7 @@ std::vector<double> database::weight_range(unsigned edge_pop_id, std::pair<unsig
     return ret;
 }
 
-std::vector<double> database::delay_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
+std::vector<double> model_desc::delay_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
     std::vector<double> ret;
 
     // First read edge_group_id and edge_group_index and edge_type
@@ -700,4 +568,173 @@ std::vector<double> database::delay_range(unsigned edge_pop_id, std::pair<unsign
         ret.emplace_back(delay);
     }
     return ret;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+io_desc::io_desc(h5_record nodes,
+                       std::vector<spike_in_info> spikes,
+                       std::vector<current_clamp_info> current_clamp,
+                       std::vector<probe_info> probes) : nodes_(nodes){
+    build_spike_map(spikes);
+    build_current_clamp_map(current_clamp);
+    build_probe_map(probes);
+};
+
+void io_desc::build_spike_map(std::vector<spike_in_info> spikes) {
+    for (unsigned gid = 0; gid < nodes_.num_elements(); gid++) {
+        std::vector<double> spike_times;
+
+        auto loc_cell = nodes_.localize(gid);
+
+        for (auto sp: spikes) {
+            if (loc_cell.pop_name != sp.population) {
+                continue;
+            }
+
+            auto spike_idx = sp.data.find_group("spikes");
+            if (spike_idx == -1) {
+                throw sonata_exception("Input spikes file doesn't have top level group \"spikes\"");
+            }
+            auto range = sp.data[spike_idx].int_pair_at("gid_to_range", loc_cell.el_id);
+
+            auto spk_times = sp.data[spike_idx].double_range("timestamps", range.first, range.second);
+
+            spike_times.insert(spike_times.end(), spk_times.begin(), spk_times.end());
+        }
+
+        std::sort(spike_times.begin(), spike_times.end());
+        spike_map_.insert({gid, std::move(spike_times)});
+    }
+}
+
+void io_desc::build_current_clamp_map(std::vector<current_clamp_info> current) {
+
+    struct param_info {
+        double dur;
+        double amp;
+        double delay;
+    };
+
+    struct loc_info {
+        cell_gid_type gid;
+        std::string population;
+        unsigned seg;
+        double pos;
+    };
+    for (auto curr_clamp : current){
+        std::unordered_map<unsigned, param_info> param_map;
+        std::unordered_map<unsigned, loc_info> loc_map;
+
+        auto stim_param_data = curr_clamp.stim_params.get_data();
+        auto stim_param_cols = stim_param_data.front();
+
+        for(auto it = stim_param_data.begin()+1; it < stim_param_data.end(); it++) {
+            loc_info loc;
+            unsigned pos = 0, id;
+
+            for (auto field: *it) {
+                if(stim_param_cols[pos] == "electrode_id") {
+                    id = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "node_id") {
+                    loc.gid = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "population") {
+                    loc.population = field;
+                } else if (stim_param_cols[pos] == "sec_id") {
+                    loc.seg = std::atoi(field.c_str());
+                } else if (stim_param_cols[pos] == "seg_x") {
+                    loc.pos = std::atof(field.c_str());
+                }
+                pos++;
+            }
+            loc_map[id] = loc;
+        }
+
+        auto stim_loc_data = curr_clamp.stim_loc.get_data();
+        auto stim_loc_cols = stim_loc_data.front();
+
+        for(auto it = stim_loc_data.begin()+1; it < stim_loc_data.end(); it++) {
+            param_info param;
+            unsigned pos = 0, id;
+
+            for (auto field: *it) {
+                if(stim_loc_cols[pos] == "electrode_id") {
+                    id = std::atoi(field.c_str());
+                } else if (stim_loc_cols[pos] == "dur") {
+                    param.dur = std::atof(field.c_str());
+                } else if (stim_loc_cols[pos] == "amp") {
+                    param.amp = std::atof(field.c_str());
+                } else if (stim_loc_cols[pos] == "delay") {
+                    param.delay = std::atof(field.c_str());
+                }
+                pos++;
+            }
+            param_map[id] = param;
+        }
+
+        for (auto i: loc_map) {
+            if (param_map.find(i.first) != param_map.end()) {
+                auto params = param_map.at(i.first);
+
+                auto local_loc = i.second;
+                auto global_gid = nodes_.globalize({local_loc.population, local_loc.gid});
+
+                current_clamp_map_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
+            }
+            else {
+                throw sonata_exception("Electrode id has no corresponding input description");
+            }
+        };
+    }
+}
+
+void io_desc::build_probe_map(std::vector<probe_info> probes) {
+    for (auto probe: probes) {
+        for (auto i: probe.node_ids) {
+            auto gid = nodes_.globalize({probe.population, i});
+
+            if (probe_count_.find(gid) == probe_count_.end()) {
+                probe_count_[gid] = 0;
+            }
+            cell_member_type id = {gid, probe_count_[gid]++};
+            segment_location loc = {probe.sec_id, probe.sec_pos};
+            arb::cell_probe_address::probe_kind kind = probe.kind == "v" ?
+                                                       arb::cell_probe_address::membrane_voltage :
+                                                       arb::cell_probe_address::membrane_current;
+
+            probe_map_[id] = arb::probe_info{id, kind, arb::cell_probe_address{loc, kind}};
+            probe_groups_[probe.file_name].push_back(id);
+        }
+    }
+}
+
+std::vector<current_clamp_desc> io_desc::get_current_clamps(cell_gid_type gid) const {
+    if (current_clamp_map_.find(gid) != current_clamp_map_.end()) {
+        return current_clamp_map_.at(gid);
+    }
+    return {};
+};
+
+std::vector<double> io_desc::get_spikes(cell_gid_type gid) const {
+    if (spike_map_.find(gid) != spike_map_.end()) {
+        return spike_map_.at(gid);
+    }
+    return {};
+};
+
+arb::probe_info io_desc::get_probe(cell_member_type id) const {
+    if (probe_map_.find(id) != probe_map_.end()) {
+        return probe_map_.at(id);
+    }
+    throw sonata_exception("Requested cell_member_type has no probe");
+};
+
+std::unordered_map<std::string, std::vector<cell_member_type>> io_desc::get_probe_groups() const {
+    return probe_groups_;
+};
+
+cell_size_type io_desc::get_num_probes(cell_gid_type gid) const {
+    if (probe_count_.find(gid) != probe_count_.end()) {
+        return probe_count_.at(gid);
+    }
+    return 0;
 }
