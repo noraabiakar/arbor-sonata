@@ -7,10 +7,7 @@
 #include <fstream>
 
 #include "density_mech_helper.hpp"
-
-arb::mechanism_desc read_dynamics_params_point(std::string fname);
-std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(std::string fname);
-std::unordered_map<std::string, variable_map> read_dynamics_params_density_override(std::string fname);
+#include "dynamics_params_helper.hpp"
 
 struct type_pop_id {
     unsigned type_tag;
