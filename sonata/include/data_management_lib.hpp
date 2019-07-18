@@ -68,8 +68,8 @@ public:
     void get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns);
 
     // Queries csv/hdf5 records as needed to get a cell's density mechanisms (with correct parameter overrides)
-    // Returns a map from section name (soma, dend, etc) to a vector of mechanism_desc
-    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> get_density_mechs(cell_gid_type);
+    // Returns a map from section kind (soma, dend, etc) to a vector of mechanism_desc
+    std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> get_density_mechs(cell_gid_type);
 
     /// Read relevant information from the relevant hdf5 file in ranges and aggregate in convenient structs
 

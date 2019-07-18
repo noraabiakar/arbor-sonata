@@ -288,7 +288,7 @@ void model_desc::get_connections(cell_gid_type gid, std::vector<arb::cell_connec
     }
 }
 
-std::unordered_map<std::string, std::vector<arb::mechanism_desc>> model_desc::get_density_mechs(cell_gid_type gid) {
+std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> model_desc::get_density_mechs(cell_gid_type gid) {
     auto loc_node = nodes_.localize(gid);
     auto node_pop_name = loc_node.pop_name;
     auto node_pop_id = nodes_.map()[node_pop_name];
