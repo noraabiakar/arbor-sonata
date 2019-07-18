@@ -24,6 +24,63 @@ h5_dataset::h5_dataset(hid_t parent, std::string name): parent_id_(parent), name
 
     size_ = dims[0];
 
+    H5Sclose(dspace);
+    H5Dclose(id_);
+}
+
+h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<int> data): parent_id_(parent), name_(name) {
+    hsize_t size = data.size();
+    auto dspace = H5Screate_simple(1, &size, NULL);
+
+    auto id_ = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    int arr[size];
+    std::copy(data.begin(), data.end(), arr);
+    H5Dwrite(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+
+    H5Sclose(dspace);
+    H5Dclose(id_);
+}
+
+h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<double> data): parent_id_(parent), name_(name) {
+    hsize_t size = data.size();
+    auto dspace = H5Screate_simple(1, &size, NULL);
+
+    auto id_ = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_DOUBLE, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    double arr[size];
+    std::copy(data.begin(), data.end(), arr);
+    H5Dwrite(id_, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+
+    H5Sclose(dspace);
+    H5Dclose(id_);
+}
+
+h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<std::vector<int>> data): parent_id_(parent), name_(name) {
+    hsize_t dims_data[2] = {data.size(), data.front().size()};
+    auto dspace = H5Screate_simple(2, dims_data, NULL);
+
+    auto id_ = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    int arr[data.size()][data.front().size()];
+    for (unsigned i = 0; i < data.size(); i++) {
+        std::copy(data[i].begin(), data[i].end(), arr[i]);
+    }
+    H5Dwrite(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+
+    H5Sclose(dspace);
+    H5Dclose(id_);
+}
+
+h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<std::vector<double>> data): parent_id_(parent), name_(name) {
+    hsize_t dims_data[2] = {data.size(), data.front().size()};
+    auto dspace = H5Screate_simple(2, dims_data, NULL);
+
+    auto id_ = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_DOUBLE, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    double arr[data.size()][data.front().size()];
+    for (unsigned i = 0; i < data.size(); i++) {
+        std::copy(data[i].begin(), data[i].end(), arr[i]);
+    }
+    H5Dwrite(id_, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+
+    H5Sclose(dspace);
     H5Dclose(id_);
 }
 
@@ -315,14 +372,42 @@ h5_group::h5_group(hid_t parent, std::string name): parent_id_(parent), name_(na
     }
 }
 
+std::shared_ptr<h5_group> h5_group::add_group(std::string name) {
+    auto new_group = std::make_shared<h5_group>(group_h_.id, name);
+    groups_.emplace_back(new_group);
+    return new_group;
+}
+
+void h5_group::add_dataset(std::string name, std::vector<int> dset) {
+    auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
+    datasets_.emplace_back(new_dataset);
+}
+
+
+void h5_group::add_dataset(std::string name, std::vector<double> dset) {
+    auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
+    datasets_.emplace_back(new_dataset);
+}
+
+void h5_group::add_dataset(std::string name, std::vector<std::vector<int>> dset) {
+    auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
+    datasets_.emplace_back(new_dataset);
+}
+
+
+void h5_group::add_dataset(std::string name, std::vector<std::vector<double>> dset) {
+    auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
+    datasets_.emplace_back(new_dataset);
+}
+
 std::string h5_group::name() {
     return name_;
 }
 
 ///h5_file methods
-h5_file::h5_file(std::string name):
+h5_file::h5_file(std::string name, bool new_file):
         name_(name),
-        file_h_(name),
+        file_h_(name, new_file),
         top_group_(std::make_shared<h5_group>(file_h_.id, "/")) {}
 
 std::string h5_file::name() {
