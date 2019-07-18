@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <fstream>
 #include <string>
 
 #include <hdf5.h>
@@ -11,6 +12,15 @@ class h5_dataset {
 public:
     // Constructor from parent (hdf5 group) id and dataset name - finds size of the dataset
     h5_dataset(hid_t parent, std::string name);
+
+    // Constructor from parent (hdf5 group) id and dataset name - creates int/double dataset with size `size`
+    h5_dataset(hid_t parent, std::string name, std::vector<int> data);
+
+    h5_dataset(hid_t parent, std::string name, std::vector<double> data);
+
+    h5_dataset(hid_t parent, std::string name, std::vector<std::vector<int>> data);
+
+    h5_dataset(hid_t parent, std::string name, std::vector<std::vector<double>> data);
 
     // returns name of dataset
     std::string name();
@@ -65,6 +75,21 @@ public:
     // Returns name of group
     std::string name();
 
+    // Add a new group
+    std::shared_ptr<h5_group> add_group(std::string name);
+
+    // Add a new int dataset
+    void add_dataset(std::string name, std::vector<int> dset);
+
+    // Add a new double dataset
+    void add_dataset(std::string name, std::vector<double> dset);
+
+    // Add a new 2D int dataset
+    void add_dataset(std::string name, std::vector<std::vector<int>> dset);
+
+    // Add a new 2D double dataset
+    void add_dataset(std::string name, std::vector<std::vector<double>> dset);
+
     // hdf5 groups belonging to group
     std::vector<std::shared_ptr<h5_group>> groups_;
 
@@ -74,7 +99,13 @@ public:
 private:
     // RAII to handle recursive opening/closing groups
     struct group_handle {
-        group_handle(hid_t parent_id, std::string name): id(H5Gopen(parent_id, name.c_str(), H5P_DEFAULT)), name(name){}
+        group_handle(hid_t parent_id, std::string name): name(name) {
+            if (H5Lexists(parent_id, name.c_str(), H5P_DEFAULT)) {
+                id = H5Gopen(parent_id, name.c_str(), H5P_DEFAULT);
+            } else {
+                id = H5Gcreate(parent_id, name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+            }
+        }
         ~group_handle() {
             H5Gclose(id);
         }
@@ -98,7 +129,14 @@ class h5_file {
 private:
     // RAII to handle opening/closing files
     struct file_handle {
-        file_handle(std::string file): id(H5Fopen(file.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT)), name(file) {}
+        file_handle(std::string file, bool new_file = false): name(file) {
+            if (new_file) {
+                id = H5Fcreate(file.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+            }
+            else {
+                id = H5Fopen(file.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+            }
+        }
         ~file_handle() {
             H5Fclose(id);
         }
@@ -114,7 +152,7 @@ private:
 
 public:
     // Constructor from file name
-    h5_file(std::string name);
+    h5_file(std::string name, bool new_file=false);
 
     // Returns file name
     std::string name();
