@@ -78,7 +78,7 @@ TEST(csv_node_record, constructor) {
 
     EXPECT_EQ(0, l2.size());
 
-    auto soma_mechs = l0.at("soma");
+    auto soma_mechs = l0.at(arb::section_kind::soma);
     for (auto m: soma_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-65, m.get("e"));
@@ -89,7 +89,7 @@ TEST(csv_node_record, constructor) {
         }
     }
 
-    auto dend_mechs = l0.at("dend");
+    auto dend_mechs = l0.at(arb::section_kind::dendrite);
     for (auto m: dend_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-70, m.get("e"));
@@ -99,7 +99,7 @@ TEST(csv_node_record, constructor) {
         }
     }
 
-    soma_mechs = l1.at("soma");
+    soma_mechs = l1.at(arb::section_kind::soma);
     for (auto m: soma_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-65, m.get("e"));
@@ -110,7 +110,7 @@ TEST(csv_node_record, constructor) {
         }
     }
 
-    dend_mechs = l1.at("dend");
+    dend_mechs = l1.at(arb::section_kind::dendrite);
     for (auto m: dend_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-65, m.get("e"));
@@ -126,7 +126,7 @@ TEST(csv_node_record, constructor) {
     r.override_density_params(t0, overrides);
     l0 = r.density_mech_desc(t0);
 
-    soma_mechs = l0.at("soma");
+    soma_mechs = l0.at(arb::section_kind::soma);
     for (auto m: soma_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-65, m.get("e"));
@@ -137,7 +137,7 @@ TEST(csv_node_record, constructor) {
         }
     }
 
-    dend_mechs = l0.at("dend");
+    dend_mechs = l0.at(arb::section_kind::dendrite);
     for (auto m: dend_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-80, m.get("e"));
