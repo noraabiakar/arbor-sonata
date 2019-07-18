@@ -43,14 +43,14 @@ TEST(dynamics_params_helper, density_mech) {
     auto pas_0_details = pas_0_group.mech_details;
     EXPECT_EQ(2, pas_0_details.size());
 
-    EXPECT_EQ("soma", pas_0_details[0].section);
+    EXPECT_EQ(arb::section_kind::soma, pas_0_details[0].section);
     EXPECT_EQ(0, pas_0_details[0].param_alias.size());
     EXPECT_EQ("pas", pas_0_details[0].mech.name());
     EXPECT_EQ(2, pas_0_details[0].mech.values().size());
     EXPECT_EQ(-65, pas_0_details[0].mech.values().at("e"));
     EXPECT_EQ(0, pas_0_details[0].mech.values().at("g"));
 
-    EXPECT_EQ("dend", pas_0_details[1].section);
+    EXPECT_EQ(arb::section_kind::dendrite, pas_0_details[1].section);
     EXPECT_EQ(1, pas_0_details[1].param_alias.size());
     EXPECT_TRUE(pas_0_details[1].param_alias.find("e") != pas_0_details[1].param_alias.end());
     EXPECT_EQ("e_pas", pas_0_details[1].param_alias.at("e"));
@@ -70,7 +70,7 @@ TEST(dynamics_params_helper, density_mech) {
     auto hh_0_details = hh_0_group.mech_details;
     EXPECT_EQ(1, hh_0_details.size());
 
-    EXPECT_EQ("soma", hh_0_details[0].section);
+    EXPECT_EQ(arb::section_kind::soma, hh_0_details[0].section);
     EXPECT_EQ(2, hh_0_details[0].param_alias.size());
     EXPECT_TRUE(hh_0_details[0].param_alias.find("el") != hh_0_details[0].param_alias.end());
     EXPECT_EQ("el_hh", hh_0_details[0].param_alias.at("el"));
