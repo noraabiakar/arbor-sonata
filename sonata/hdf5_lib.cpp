@@ -378,24 +378,8 @@ std::shared_ptr<h5_group> h5_group::add_group(std::string name) {
     return new_group;
 }
 
-void h5_group::add_dataset(std::string name, std::vector<int> dset) {
-    auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
-    datasets_.emplace_back(new_dataset);
-}
-
-
-void h5_group::add_dataset(std::string name, std::vector<double> dset) {
-    auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
-    datasets_.emplace_back(new_dataset);
-}
-
-void h5_group::add_dataset(std::string name, std::vector<std::vector<int>> dset) {
-    auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
-    datasets_.emplace_back(new_dataset);
-}
-
-
-void h5_group::add_dataset(std::string name, std::vector<std::vector<double>> dset) {
+template <typename T>
+void h5_group::add_dataset(std::string name, std::vector<T> dset) {
     auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
     datasets_.emplace_back(new_dataset);
 }
@@ -676,3 +660,8 @@ std::unordered_map<std::string, unsigned> h5_record::map() const {
 std::vector<std::string> h5_record::pop_names() const {
     return pop_names_;
 }
+
+template void h5_group::add_dataset<int>(std::string, std::vector<int>);
+template void h5_group::add_dataset<double>(std::string, std::vector<double>);
+template void h5_group::add_dataset<std::vector<int>>(std::string, std::vector<std::vector<int>>);
+template void h5_group::add_dataset<std::vector<double>>(std::string, std::vector<std::vector<double>>);

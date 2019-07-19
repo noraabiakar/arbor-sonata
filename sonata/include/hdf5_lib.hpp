@@ -79,16 +79,8 @@ public:
     std::shared_ptr<h5_group> add_group(std::string name);
 
     // Add a new int dataset
-    void add_dataset(std::string name, std::vector<int> dset);
-
-    // Add a new double dataset
-    void add_dataset(std::string name, std::vector<double> dset);
-
-    // Add a new 2D int dataset
-    void add_dataset(std::string name, std::vector<std::vector<int>> dset);
-
-    // Add a new 2D double dataset
-    void add_dataset(std::string name, std::vector<std::vector<double>> dset);
+    template <typename T>
+    void add_dataset(std::string name, std::vector<T> dset);
 
     // hdf5 groups belonging to group
     std::vector<std::shared_ptr<h5_group>> groups_;
