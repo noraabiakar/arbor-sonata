@@ -74,10 +74,10 @@ void model_desc::build_source_and_target_maps(const std::vector<arb::group_descr
                     auto edge_pop = edges_.map()[edge_pop_name];
                     auto ind_id = edges_[edge_pop].find_group("indicies");
                     auto s2t_id = edges_[edge_pop][ind_id].find_group("source_to_target");
-                    auto n2r_range = edges_[edge_pop][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+                    auto n2r_range = edges_[edge_pop][ind_id][s2t_id].get<std::pair<int,int>>("node_id_to_ranges", loc_node.el_id);
 
                     for (auto j = n2r_range.first; j < n2r_range.second; j++) {
-                        auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
+                        auto r2e = edges_[edge_pop][ind_id][s2t_id].get<std::pair<int,int>>("range_to_edge_id", j);
                         auto src_rng = source_range(edge_pop, r2e);
                         for (auto s: src_rng) {
                             auto loc = src_set.find(s);
@@ -95,9 +95,9 @@ void model_desc::build_source_and_target_maps(const std::vector<arb::group_descr
 
                     auto ind_id = edges_[edge_pop].find_group("indicies");
                     auto t2s_id = edges_[edge_pop][ind_id].find_group("target_to_source");
-                    auto n2r = edges_[edge_pop][ind_id][t2s_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+                    auto n2r = edges_[edge_pop][ind_id][t2s_id].get<std::pair<int,int>>("node_id_to_ranges", loc_node.el_id);
                     for (auto j = n2r.first; j < n2r.second; j++) {
-                        auto r2e = edges_[edge_pop][ind_id][t2s_id].int_pair_at("range_to_edge_id", j);
+                        auto r2e = edges_[edge_pop][ind_id][t2s_id].get<std::pair<int,int>>("range_to_edge_id", j);
 
                         auto tgt_rng = target_range(edge_pop, r2e);
 
@@ -176,16 +176,16 @@ arb::morphology model_desc::get_cell_morphology(cell_gid_type gid) {
     auto node_pop_id = nodes_.map()[node_pop_name];
     auto node_id = loc_node.el_id;
 
-    auto group_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
-    auto group_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
+    auto group_id = nodes_[node_pop_id].get<int>("node_group_id", node_id);
+    auto group_idx = nodes_[node_pop_id].get<int>("node_group_index", node_id);
 
-    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto node_type_tag = nodes_[node_pop_id].get<int>("node_type_id", node_id);
 
     if (nodes_[node_pop_id].find_group(std::to_string(group_id)) != -1) {
         auto lgi = nodes_[node_pop_id].find_group(std::to_string(group_id));
         auto group = nodes_[node_pop_id][lgi];
         if (group.find_dataset("morphology") != -1) {
-            auto file = group.string_at("morphology", group_idx);
+            auto file = group.get<std::string>("morphology", group_idx);
 
             std::ifstream f(file);
             if (!f) throw sonata_exception("Unable to open SWC file");
@@ -202,7 +202,7 @@ arb::cell_kind model_desc::get_cell_kind(cell_gid_type gid) {
     auto node_pop_id = nodes_.map()[node_pop_name];
     auto node_id = loc_node.el_id;
 
-    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto node_type_tag = nodes_[node_pop_id].get<int>("node_type_id", node_id);
 
     return node_types_.cell_kind(type_pop_id(node_type_tag, node_pop_name));
 }
@@ -224,16 +224,16 @@ void model_desc::get_connections(cell_gid_type gid, std::vector<arb::cell_connec
 
             auto ind_id = edges_[edge_pop].find_group("indicies");
             auto s2t_id = edges_[edge_pop][ind_id].find_group("target_to_source");
-            auto n2r_range = edges_[edge_pop][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+            auto n2r_range = edges_[edge_pop][ind_id][s2t_id].get<std::pair<int,int>>("node_id_to_ranges", loc_node.el_id);
 
             for (auto j = n2r_range.first; j < n2r_range.second; j++) {
-                auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
+                auto r2e = edges_[edge_pop][ind_id][s2t_id].get<std::pair<int,int>>("range_to_edge_id", j);
                 auto src_rng = source_range(edge_pop, r2e);
                 auto tgt_rng = target_range(edge_pop, r2e);
                 auto weights = weight_range(edge_pop, r2e);
                 auto delays = delay_range(edge_pop, r2e);
 
-                auto src_id = edges_[edge_pop].int_range("source_node_id", r2e.first, r2e.second);
+                auto src_id = edges_[edge_pop].get<std::vector<int>>("source_node_id", r2e.first, r2e.second);
 
                 std::vector<cell_member_type> sources, targets;
 
@@ -294,10 +294,10 @@ std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> model_de
     auto node_pop_id = nodes_.map()[node_pop_name];
     auto node_id = loc_node.el_id;
 
-    auto nodes_grp_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
-    auto nodes_grp_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
+    auto nodes_grp_id = nodes_[node_pop_id].get<int>("node_group_id", node_id);
+    auto nodes_grp_idx = nodes_[node_pop_id].get<int>("node_group_index", node_id);
 
-    auto nodes_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
+    auto nodes_type_tag = nodes_[node_pop_id].get<int>("node_type_id", node_id);
     auto nodes_pop_name = nodes_[node_pop_id].name();
 
     auto node_unique_id = type_pop_id(nodes_type_tag, nodes_pop_name);
@@ -317,7 +317,7 @@ std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> model_de
                     auto dpi = group.find_group("dynamics_params");
                     auto dyn_params = group[dpi];
                     if (dyn_params.find_dataset(gp_var_id) != -1) {
-                        auto value = dyn_params.double_at(gp_var_id, nodes_grp_idx);
+                        auto value = dyn_params.get<double>(gp_var_id, nodes_grp_idx);
                         density_vars[gp_id][var_id] = value;
                     }
                 }
@@ -335,10 +335,10 @@ std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> model_de
 std::vector<source_type> model_desc::source_range(unsigned edge_pop_id, std::pair<unsigned, unsigned> edge_range) {
     std::vector<source_type> ret;
 
-    // First read edge_group_id and edge_group_index and edge_type
-    auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
-    auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    // First get edge_group_id and edge_group_index and edge_type
+    auto edges_grp_id = edges_[edge_pop_id].get<std::vector<int>>("edge_group_id", edge_range.first, edge_range.second);
+    auto edges_grp_idx = edges_[edge_pop_id].get<std::vector<int>>("edge_group_index", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].get<std::vector<int>>("edge_type_id", edge_range.first, edge_range.second);
     auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
@@ -357,11 +357,11 @@ std::vector<source_type> model_desc::source_range(unsigned edge_pop_id, std::pai
             auto loc_grp_idx = edges_grp_idx[i];
 
             if (group.find_dataset("efferent_section_id") != -1) {
-                source_branch = group.int_at("efferent_section_id", loc_grp_idx);
+                source_branch = group.get<int>("efferent_section_id", loc_grp_idx);
                 found_source_branch = true;
             }
             if (group.find_dataset("efferent_section_pos") != -1) {
-                source_pos = group.double_at("efferent_section_pos", loc_grp_idx);
+                source_pos = group.get<double>("efferent_section_pos", loc_grp_idx);
                 found_source_pos = true;
             }
         }
@@ -385,9 +385,9 @@ std::vector<target_type> model_desc::target_range(unsigned edge_pop_id, std::pai
     std::vector<target_type> ret;
 
     // First read edge_group_id and edge_group_index and edge_type
-    auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
-    auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_grp_id = edges_[edge_pop_id].get<std::vector<int>>("edge_group_id", edge_range.first, edge_range.second);
+    auto edges_grp_idx = edges_[edge_pop_id].get<std::vector<int>>("edge_group_index", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].get<std::vector<int>>("edge_type_id", edge_range.first, edge_range.second);
     auto edges_pop_name = edges_[edge_pop_id].name();
 
     auto cat = arb::global_default_catalogue();
@@ -410,15 +410,15 @@ std::vector<target_type> model_desc::target_range(unsigned edge_pop_id, std::pai
             auto loc_grp_idx = edges_grp_idx[i];
 
             if (group.find_dataset("afferent_section_id") != -1) {
-                target_branch = group.int_at("afferent_section_id", loc_grp_idx);
+                target_branch = group.get<int>("afferent_section_id", loc_grp_idx);
                 found_target_branch = true;
             }
             if (group.find_dataset("afferent_section_pos") != -1) {
-                target_pos = group.double_at("afferent_section_pos", loc_grp_idx);
+                target_pos = group.get<double>("afferent_section_pos", loc_grp_idx);
                 found_target_pos = true;
             }
             if (group.find_dataset("model_template") != -1) {
-                synapse = group.string_at("model_template", loc_grp_idx);
+                synapse = group.get<std::string>("model_template", loc_grp_idx);
                 found_synapse = true;
             }
         }
@@ -470,7 +470,7 @@ std::vector<target_type> model_desc::target_range(unsigned edge_pop_id, std::pai
                 if (dpi != -1) {
                     auto dyn_params = group[dpi];
                     if (dyn_params.find_dataset(p.first) != -1) {
-                        syn_params[p.first] = dyn_params.double_at(p.first, loc_grp_idx);
+                        syn_params[p.first] = dyn_params.get<double>(p.first, loc_grp_idx);
                     }
                 }
             }
@@ -489,9 +489,9 @@ std::vector<double> model_desc::weight_range(unsigned edge_pop_id, std::pair<uns
     std::vector<double> ret;
 
     // First read edge_group_id and edge_group_index and edge_type
-    auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
-    auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_grp_id = edges_[edge_pop_id].get<std::vector<int>>("edge_group_id", edge_range.first, edge_range.second);
+    auto edges_grp_idx = edges_[edge_pop_id].get<std::vector<int>>("edge_group_index", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].get<std::vector<int>>("edge_type_id", edge_range.first, edge_range.second);
     auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
@@ -507,7 +507,7 @@ std::vector<double> model_desc::weight_range(unsigned edge_pop_id, std::pair<uns
             auto loc_grp_idx = edges_grp_idx[i];
 
             if (group.find_dataset("syn_weight") != -1) {
-                weight = group.double_at("syn_weight", loc_grp_idx);
+                weight = group.get<double>("syn_weight", loc_grp_idx);
                 found_weight = true;
             }
         }
@@ -531,9 +531,9 @@ std::vector<double> model_desc::delay_range(unsigned edge_pop_id, std::pair<unsi
     std::vector<double> ret;
 
     // First read edge_group_id and edge_group_index and edge_type
-    auto edges_grp_id = edges_[edge_pop_id].int_range("edge_group_id", edge_range.first, edge_range.second);
-    auto edges_grp_idx = edges_[edge_pop_id].int_range("edge_group_index", edge_range.first, edge_range.second);
-    auto edges_type_tag = edges_[edge_pop_id].int_range("edge_type_id", edge_range.first, edge_range.second);
+    auto edges_grp_id = edges_[edge_pop_id].get<std::vector<int>>("edge_group_id", edge_range.first, edge_range.second);
+    auto edges_grp_idx = edges_[edge_pop_id].get<std::vector<int>>("edge_group_index", edge_range.first, edge_range.second);
+    auto edges_type_tag = edges_[edge_pop_id].get<std::vector<int>>("edge_type_id", edge_range.first, edge_range.second);
     auto edges_pop_name = edges_[edge_pop_id].name();
 
     for (unsigned i = 0; i < edges_grp_id.size(); i++) {
@@ -549,7 +549,7 @@ std::vector<double> model_desc::delay_range(unsigned edge_pop_id, std::pair<unsi
             auto loc_grp_idx = edges_grp_idx[i];
 
             if (group.find_dataset("delay") != -1) {
-                delay = group.double_at("delay", loc_grp_idx);
+                delay = group.get<double>("delay", loc_grp_idx);
                 found_delay = true;
             }
         }
@@ -595,9 +595,9 @@ void io_desc::build_spike_map(std::vector<spike_in_info> spikes) {
             if (spike_idx == -1) {
                 throw sonata_exception("Input spikes file doesn't have top level group \"spikes\"");
             }
-            auto range = sp.data[spike_idx].int_pair_at("gid_to_range", loc_cell.el_id);
+            auto range = sp.data[spike_idx].get<std::pair<int,int>>("gid_to_range", loc_cell.el_id);
 
-            auto spk_times = sp.data[spike_idx].double_range("timestamps", range.first, range.second);
+            auto spk_times = sp.data[spike_idx].get<std::vector<double>>("timestamps", range.first, range.second);
 
             spike_times.insert(spike_times.end(), spk_times.begin(), spk_times.end());
         }

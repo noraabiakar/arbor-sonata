@@ -285,6 +285,7 @@ void write_spikes(std::vector<arb::spike>& spikes,
                   bool sort_by_time, std::string file_name,
                   const std::vector<std::string>& pop_names,
                   const std::vector<unsigned>& pop_parts) {
+
     //Sort spikes by gid
     std::sort(spikes.begin(), spikes.end(), [](const arb::spike& a, const arb::spike& b) -> bool
     {
@@ -312,42 +313,32 @@ void write_spikes(std::vector<arb::spike>& spikes,
         }
     }
 
-    auto file = H5Fcreate(file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-    auto group = H5Gcreate(file, "spikes", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    h5_file file(file_name, true);
+    auto file_group = file.top_group_;
+
+    auto spikes_group = file_group->add_group("spikes");
 
     for (unsigned p = 0; p < pop_names.size(); p++) {
         if (spike_part[p+1] > spike_part[p]) {
-            std::string full_group_name = "/spikes/" + pop_names[p];
-            std::string full_dset_gid_name = full_group_name + "/node_ids";
-            std::string full_dset_time_name = full_group_name + "/timestamps";
-
-            auto pop_group = H5Gcreate(file, full_group_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+            auto pop_group = spikes_group->add_group(pop_names[p]);
 
             hsize_t size = spike_part[p + 1] - spike_part[p];
 
-            int spike_gids[size];
-            double spike_times[size];
+            std::vector<int> spike_gids;
+            std::vector<double> spike_times;
+
+            spike_gids.reserve(size);
+            spike_times.reserve(size);
 
             for (unsigned i = spike_part[p]; i < spike_part[p + 1]; i++) {
-                spike_gids[i - spike_part[p]] = spikes[i].source.gid - pop_parts[p];
-                spike_times[i - spike_part[p]] = spikes[i].time;
+                spike_gids.push_back(spikes[i].source.gid - pop_parts[p]);
+                spike_times.push_back(spikes[i].time);
             }
 
-            auto space = H5Screate_simple(1, &size, NULL);
-            auto dset_gid = H5Dcreate(file, full_dset_gid_name.c_str(), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-            auto dset_time = H5Dcreate(file, full_dset_time_name.c_str(), H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-            H5Dwrite(dset_gid, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, spike_gids);
-            H5Dwrite(dset_time, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, spike_times);
-
-            H5Dclose(dset_gid);
-            H5Dclose(dset_time);
-            H5Sclose(space);
-            H5Gclose(pop_group);
+            pop_group->add_dataset("node_ids", spike_gids);
+            pop_group->add_dataset("timestamps", spike_times);
         }
     }
-    H5Gclose (group);
-    H5Fclose (file);
 }
 
 void write_trace(const std::unordered_map<cell_member_type, trace_info>& trace,
@@ -375,37 +366,32 @@ void write_trace(const std::unordered_map<cell_member_type, trace_info>& trace,
             trace_part.push_back(it - traced_probes.begin());
         }
 
-        auto file = H5Fcreate(file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-        auto group = H5Gcreate(file, "reports", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        h5_file file(file_name, true);
+        auto file_group = file.top_group_;
+        auto reports_group = file_group->add_group("reports");
 
         for (unsigned p = 0; p < pop_names.size(); p++) {
             if (trace_part[p+1] > trace_part[p]) {
-                std::string full_group_name = "/reports/" + pop_names[p];
-                std::string full_mapping_group = full_group_name + "/mapping";
 
-                auto pop_group = H5Gcreate(file, full_group_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-                auto mapping_group = H5Gcreate (file, full_mapping_group.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+                auto pop_group = reports_group->add_group(pop_names[p]);
+                auto map_group = pop_group->add_group("mapping");
 
                 hsize_t num_traces = trace_part[p+1] - trace_part[p];
                 hsize_t size_trace = trace.at(traced_probes.front()).data.size();
 
-                hsize_t dims_data[2] = {num_traces, size_trace};
-                hsize_t dims_time[1] = {size_trace};
-                hsize_t dims_values[1] = {num_traces};
+                std::vector<std::vector<double>> trace_data(num_traces);
+                std::vector<double> trace_time(size_trace);
+                std::vector<int> seg_id(num_traces);
+                std::vector<double> seg_pos(num_traces);
 
-                double trace_data[num_traces][size_trace];
-                double trace_time[size_trace];
-                unsigned seg_id[num_traces];
-                double seg_pos[num_traces];
-
-                std::vector<unsigned> unique_gids;
-                std::vector<unsigned> gid_parts = {0};
+                std::vector<int> unique_gids;
+                std::vector<int> gid_parts = {0};
 
                 unsigned i;
                 for (i = trace_part[p]; i < trace_part[p+1]; i++) {
                     auto& info = trace.at(traced_probes[i]);
-                    for (unsigned j = 0; j < info.data.size(); j++) {
-                        trace_data[i - trace_part[p]][j] = info.data[j].v;
+                    for (auto data: info.data) {
+                        trace_data[i - trace_part[p]].push_back(data.v);
                     }
                     seg_id[i - trace_part[p]] = info.seg_id;
                     seg_pos[i - trace_part[p]] = info.seg_pos;
@@ -426,74 +412,13 @@ void write_trace(const std::unordered_map<cell_member_type, trace_info>& trace,
                 }
 
                 //Write values
-                std::string full_dset_data_name = full_group_name + "/data";
-                auto space = H5Screate_simple(2, dims_data, NULL);
-                auto dataset = H5Dcreate(file, full_dset_data_name.c_str(), H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-                auto status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, trace_data);
-
-                H5Dclose (dataset);
-                H5Sclose (space);
-
-                //Write times
-                std::string full_dset_time_name = full_mapping_group + "/time";
-                space = H5Screate_simple(1, dims_time, NULL);
-                dataset = H5Dcreate(file, full_dset_time_name.c_str(), H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-                status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, trace_time);
-
-                H5Dclose (dataset);
-                H5Sclose (space);
-
-                //Write seg_ids
-                std::string full_dset_id_name = full_mapping_group + "/element_ids";
-                space = H5Screate_simple(1, dims_values, NULL);
-                dataset = H5Dcreate(file, full_dset_id_name.c_str(), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-                status = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, seg_id);
-
-                H5Dclose (dataset);
-                H5Sclose (space);
-
-                //Write seg_pos
-                std::string full_dset_pos_name = full_mapping_group + "/element_pos";
-                space = H5Screate_simple(1, dims_values, NULL);
-                dataset = H5Dcreate(file, full_dset_pos_name.c_str(), H5T_NATIVE_DOUBLE, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-                status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, seg_pos);
-
-                H5Dclose (dataset);
-                H5Sclose (space);
-
-                hsize_t dims_nodes[1] = {unique_gids.size()};
-                hsize_t dims_idx[1] = {gid_parts.size()};
-
-                unsigned nodes[unique_gids.size()];
-                unsigned indices[gid_parts.size()];
-
-                std::copy(unique_gids.begin(), unique_gids.end(), nodes);
-                std::copy(gid_parts.begin(), gid_parts.end(), indices);
-
-                //Write node_ids
-                std::string full_dset_node_name = full_mapping_group + "/node_ids";
-                space = H5Screate_simple(1, dims_nodes, NULL);
-                dataset = H5Dcreate(file, full_dset_node_name.c_str(), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-                status = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, nodes);
-
-                H5Dclose (dataset);
-                H5Sclose (space);
-
-                //Write index_pointers
-                std::string full_dset_idx_name = full_mapping_group + "/index_pointers";
-                space = H5Screate_simple(1, dims_idx, NULL);
-                dataset = H5Dcreate(file, full_dset_idx_name.c_str(), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-                status = H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, indices);
-
-                H5Dclose (dataset);
-                H5Sclose (space);
-
-                H5Gclose (mapping_group);
-                H5Gclose (pop_group);
+                pop_group->add_dataset("data", trace_data);
+                map_group->add_dataset("time", trace_time);
+                map_group->add_dataset("element_ids", seg_id);
+                map_group->add_dataset("element_pos", seg_pos);
+                map_group->add_dataset("node_ids", unique_gids);
+                map_group->add_dataset("index_pointers", gid_parts);
             }
         }
-
-        H5Gclose (group);
-        H5Fclose (file);
     }
 }

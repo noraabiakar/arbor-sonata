@@ -14,8 +14,8 @@
 ///h5_dataset methods
 
 h5_dataset::h5_dataset(hid_t parent, std::string name): parent_id_(parent), name_(name) {
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     const int ndims = H5Sget_simple_extent_ndims(dspace);
 
@@ -24,7 +24,64 @@ h5_dataset::h5_dataset(hid_t parent, std::string name): parent_id_(parent), name
 
     size_ = dims[0];
 
-    H5Dclose(id_);
+    H5Sclose(dspace);
+    H5Dclose(id);
+}
+
+h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<int> data): parent_id_(parent), name_(name) {
+    hsize_t size = data.size();
+    auto dspace = H5Screate_simple(1, &size, NULL);
+
+    auto id = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    int arr[size];
+    std::copy(data.begin(), data.end(), arr);
+    H5Dwrite(id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+
+    H5Sclose(dspace);
+    H5Dclose(id);
+}
+
+h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<double> data): parent_id_(parent), name_(name) {
+    hsize_t size = data.size();
+    auto dspace = H5Screate_simple(1, &size, NULL);
+
+    auto id = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_DOUBLE, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    double arr[size];
+    std::copy(data.begin(), data.end(), arr);
+    H5Dwrite(id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+
+    H5Sclose(dspace);
+    H5Dclose(id);
+}
+
+h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<std::vector<int>> data): parent_id_(parent), name_(name) {
+    hsize_t dims_data[2] = {data.size(), data.front().size()};
+    auto dspace = H5Screate_simple(2, dims_data, NULL);
+
+    auto id = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    int arr[data.size()][data.front().size()];
+    for (unsigned i = 0; i < data.size(); i++) {
+        std::copy(data[i].begin(), data[i].end(), arr[i]);
+    }
+    H5Dwrite(id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+
+    H5Sclose(dspace);
+    H5Dclose(id);
+}
+
+h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<std::vector<double>> data): parent_id_(parent), name_(name) {
+    hsize_t dims_data[2] = {data.size(), data.front().size()};
+    auto dspace = H5Screate_simple(2, dims_data, NULL);
+
+    auto id = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_DOUBLE, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    double arr[data.size()][data.front().size()];
+    for (unsigned i = 0; i < data.size(); i++) {
+        std::copy(data[i].begin(), data[i].end(), arr[i]);
+    }
+    H5Dwrite(id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+
+    H5Sclose(dspace);
+    H5Dclose(id);
 }
 
 std::string h5_dataset::name() {
@@ -35,7 +92,8 @@ int h5_dataset::size() {
     return size_;
 }
 
-auto h5_dataset::int_at(const int i) {
+template<>
+auto h5_dataset::get<int>(const int i) {
     const hsize_t idx = (hsize_t)i;
 
     // Output
@@ -48,18 +106,18 @@ auto h5_dataset::int_at(const int i) {
     // Output size
     hsize_t num_elements = 1;
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
 
     hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status = H5Dread(id_, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, out);
+    auto status = H5Dread(id, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, out);
 
     H5Sclose(dspace);
     H5Sclose(out_mem);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0 ) {
         throw sonata_dataset_exception(name_, (unsigned)i);
@@ -71,7 +129,8 @@ auto h5_dataset::int_at(const int i) {
     return r;
 }
 
-auto h5_dataset::double_at(const int i) {
+template<>
+auto h5_dataset::get<double>(const int i) {
     const hsize_t idx = (hsize_t)i;
 
     // Output
@@ -84,17 +143,17 @@ auto h5_dataset::double_at(const int i) {
     // Output size
     hsize_t num_elements = 1;
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
     hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status = H5Dread(id_, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, out);
+    auto status = H5Dread(id, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, out);
 
     H5Sclose(dspace);
     H5Sclose(out_mem);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i);
@@ -106,7 +165,8 @@ auto h5_dataset::double_at(const int i) {
     return r;
 }
 
-auto h5_dataset::string_at(const int i) {
+template<>
+auto h5_dataset::get<std::string>(const int i) {
     const hsize_t idx = (hsize_t)i;
     hsize_t dims = 1;
     hsize_t dim_sizes[] = {1};
@@ -154,7 +214,8 @@ auto h5_dataset::string_at(const int i) {
     return ret;
 }
 
-auto h5_dataset::int_range(const int i, const int j) {
+template<>
+auto h5_dataset::get<std::vector<int>>(const int i, const int j) {
     hsize_t offset = i;
     hsize_t count = j-i;
     hsize_t stride = 1;
@@ -163,17 +224,17 @@ auto h5_dataset::int_range(const int i, const int j) {
 
     int rdata[count];
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     hid_t out_mem = H5Screate_simple(1, &dimsm, NULL);
 
     H5Sselect_hyperslab(dspace, H5S_SELECT_SET, &offset, &stride, &count, &block);
-    auto status = H5Dread(id_, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, rdata);
+    auto status = H5Dread(id, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, rdata);
 
     H5Sclose(dspace);
     H5Sclose(out_mem);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
@@ -184,7 +245,8 @@ auto h5_dataset::int_range(const int i, const int j) {
     return out;
 }
 
-auto h5_dataset::double_range(const int i, const int j) {
+template <>
+auto h5_dataset::get<std::vector<double>>(const int i, const int j) {
     hsize_t offset = i;
     hsize_t count = j-i;
     hsize_t stride = 1;
@@ -193,18 +255,18 @@ auto h5_dataset::double_range(const int i, const int j) {
 
     double rdata[count];
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     hid_t out_mem = H5Screate_simple(1, &dimsm, NULL);
 
     H5Sselect_hyperslab(dspace, H5S_SELECT_SET, &offset, &stride, &count, &block);
 
-    auto status = H5Dread(id_, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, rdata);
+    auto status = H5Dread(id, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, rdata);
 
     H5Sclose(dspace);
     H5Sclose(out_mem);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
@@ -215,7 +277,8 @@ auto h5_dataset::double_range(const int i, const int j) {
     return out;
 }
 
-auto h5_dataset::int_pair_at(const int i) {
+template <>
+auto h5_dataset::get<std::pair<int,int>>(const int i) {
     const hsize_t idx_0[2] = {(hsize_t)i, (hsize_t)0};
 
     // Output
@@ -228,25 +291,25 @@ auto h5_dataset::int_pair_at(const int i) {
     // Output size
     hsize_t num_elements = 1;
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, idx_0);
     hid_t out_mem_0 = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status0 = H5Dread(id_, H5T_NATIVE_INT, out_mem_0, dspace, H5P_DEFAULT, &out_0);
+    auto status0 = H5Dread(id, H5T_NATIVE_INT, out_mem_0, dspace, H5P_DEFAULT, &out_0);
 
     const hsize_t idx_1[2] = {(hsize_t)i, (hsize_t)1};
 
     H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, idx_1);
     hid_t out_mem_1 = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status1 = H5Dread(id_, H5T_NATIVE_INT, out_mem_1, dspace, H5P_DEFAULT, &out_1);
+    auto status1 = H5Dread(id, H5T_NATIVE_INT, out_mem_1, dspace, H5P_DEFAULT, &out_1);
 
     H5Sclose(dspace);
     H5Sclose(out_mem_0);
     H5Sclose(out_mem_1);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status0 < 0 || status1 < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i);
@@ -254,14 +317,14 @@ auto h5_dataset::int_pair_at(const int i) {
 
     return std::make_pair(out_0, out_1);
 }
-
-auto h5_dataset::int_1d() {
+template <>
+auto h5_dataset::get<std::vector<int>>() {
     int out_a[size_];
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
 
-    auto status = H5Dread(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+    auto status = H5Dread(id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
             out_a);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_);
@@ -272,13 +335,14 @@ auto h5_dataset::int_1d() {
     return out;
 }
 
-auto h5_dataset::int_2d() {
+template <>
+auto h5_dataset::get<std::vector<std::pair<int, int>>>() {
     int out_a[size_][2];
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
 
-    auto status = H5Dread(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out_a);
+    auto status = H5Dread(id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out_a);
 
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_);
@@ -315,14 +379,26 @@ h5_group::h5_group(hid_t parent, std::string name): parent_id_(parent), name_(na
     }
 }
 
+std::shared_ptr<h5_group> h5_group::add_group(std::string name) {
+    auto new_group = std::make_shared<h5_group>(group_h_.id, name);
+    groups_.emplace_back(new_group);
+    return new_group;
+}
+
+template <typename T>
+void h5_group::add_dataset(std::string name, std::vector<T> dset) {
+    auto new_dataset = std::make_shared<h5_dataset>(group_h_.id, name, dset);
+    datasets_.emplace_back(new_dataset);
+}
+
 std::string h5_group::name() {
     return name_;
 }
 
 ///h5_file methods
-h5_file::h5_file(std::string name):
+h5_file::h5_file(std::string name, bool new_file):
         name_(name),
-        file_h_(name),
+        file_h_(name, new_file),
         top_group_(std::make_shared<h5_group>(file_h_.id, "/")) {}
 
 std::string h5_file::name() {
@@ -405,62 +481,26 @@ int h5_wrapper::dataset_size(std::string name) const {
     return -1;
 }
 
-int h5_wrapper::int_at(std::string name, unsigned i) const {
+template <typename T>
+T h5_wrapper::get(std::string name, unsigned i) const {
     if (find_dataset(name) != -1) {
-        return ptr_->datasets_.at(dset_map_.at(name))->int_at(i);
+        return ptr_->datasets_.at(dset_map_.at(name))->get<T>(i);
     }
     throw sonata_dataset_exception(name);
 }
 
-double h5_wrapper::double_at(std::string name, unsigned i) const {
-    if (find_dataset(name) != -1) {
-        return ptr_->datasets_.at(dset_map_.at(name))->double_at(i);
-    }
-    throw sonata_dataset_exception(name);
-}
-
-std::string h5_wrapper::string_at(std::string name, unsigned i) const {
-    if (find_dataset(name) != -1) {
-        return ptr_->datasets_.at(dset_map_.at(name))->string_at(i);
-    }
-    throw sonata_dataset_exception(name);
-}
-
-std::vector<int> h5_wrapper::int_range(std::string name, unsigned i, unsigned j) const {
+template <typename T>
+T h5_wrapper::get(std::string name, unsigned i, unsigned j) const {
     if (find_dataset(name)!= -1) {
-        if (j - i > 1) {
-            return ptr_->datasets_.at(dset_map_.at(name))->int_range(i, j);
-        } else {
-            return {ptr_->datasets_.at(dset_map_.at(name))->int_at(i)};
-        }
+        return ptr_->datasets_.at(dset_map_.at(name))->get<T>(i, j);
     }
     throw sonata_dataset_exception(name);
 }
 
-std::vector<double> h5_wrapper::double_range(std::string name, unsigned i, unsigned j) const {
+template <typename T>
+T h5_wrapper::get(std::string name) const {
     if (find_dataset(name)!= -1) {
-        return ptr_->datasets_.at(dset_map_.at(name))->double_range(i, j);
-    }
-    throw sonata_dataset_exception(name);
-}
-
-std::pair<int, int> h5_wrapper::int_pair_at(std::string name, unsigned i) const {
-    if (find_dataset(name)!= -1) {
-        return ptr_->datasets_.at(dset_map_.at(name))->int_pair_at(i);
-    }
-    throw sonata_dataset_exception(name);
-}
-
-std::vector<int> h5_wrapper::int_1d(std::string name) const {
-    if (find_dataset(name)!= -1) {
-        return ptr_->datasets_.at(dset_map_.at(name))->int_1d();
-    }
-    throw sonata_dataset_exception(name);
-}
-
-std::vector<std::pair<int, int>> h5_wrapper::int_2d(std::string name) const {
-    if (find_dataset(name)!= -1) {
-        return ptr_->datasets_.at(dset_map_.at(name))->int_2d();
+        return ptr_->datasets_.at(dset_map_.at(name))->get<T>();
     }
     throw sonata_dataset_exception(name);
 }
@@ -591,3 +631,19 @@ std::unordered_map<std::string, unsigned> h5_record::map() const {
 std::vector<std::string> h5_record::pop_names() const {
     return pop_names_;
 }
+
+template void h5_group::add_dataset<int>(std::string, std::vector<int>);
+template void h5_group::add_dataset<double>(std::string, std::vector<double>);
+template void h5_group::add_dataset<std::vector<int>>(std::string, std::vector<std::vector<int>>);
+template void h5_group::add_dataset<std::vector<double>>(std::string, std::vector<std::vector<double>>);
+
+template int h5_wrapper::get<int>(std::string, unsigned) const;
+template double h5_wrapper::get<double>(std::string, unsigned) const;
+template std::string h5_wrapper::get<std::string>(std::string, unsigned) const;
+template std::pair<int,int> h5_wrapper::get<std::pair<int,int>>(std::string, unsigned) const;
+
+template std::vector<int> h5_wrapper::get<std::vector<int>>(std::string name, unsigned i, unsigned j) const;
+template std::vector<double> h5_wrapper::get<std::vector<double>>(std::string name, unsigned i, unsigned j) const;
+
+template std::vector<int> h5_wrapper::get<std::vector<int>>(std::string) const;
+template std::vector<std::pair<int,int>> h5_wrapper::get<std::vector<std::pair<int,int>>>(std::string) const;
