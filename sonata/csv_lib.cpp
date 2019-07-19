@@ -74,14 +74,14 @@ csv_record::csv_record(std::vector<csv_file> files) {
     }
 }
 
-std::unordered_map<std::string, std::string> csv_record::fields(type_pop_id id) {
+std::unordered_map<std::string, std::string> csv_record::fields(type_pop_id id) const {
     if (fields_.find(id) != fields_.end()) {
-        return fields_[id];
+        return fields_.at(id);
     }
     throw sonata_exception("Requested CSV column not found");
 }
 
-std::vector<type_pop_id> csv_record::unique_ids() {
+std::vector<type_pop_id> csv_record::unique_ids() const {
     return ids_;
 }
 
@@ -214,7 +214,43 @@ csv_edge_record::csv_edge_record(std::vector<csv_file> files) : csv_record(files
     }
 }
 
-arb::mechanism_desc csv_edge_record::point_mech_desc(type_pop_id id) {
+std::vector<std::pair<std::string, std::string>> csv_edge_record::edge_to_source_of_target(std::string target_pop) const {
+    std::vector<std::pair<std::string, std::string>> edge_to_source;
+
+    for (auto id: ids_) {
+        const auto& type = fields(id);
+        if (type.at("target_pop_name") == target_pop) {
+            edge_to_source.emplace_back(std::make_pair(type.at("pop_name"), type.at("source_pop_name")));
+        }
+    }
+    return edge_to_source;
+}
+
+std::unordered_set<std::string> csv_edge_record::edges_of_target(std::string target_pop) const {
+    std::unordered_set<std::string> target_edge_pops;
+
+    for (auto id: ids_) {
+        const auto& type = fields(id);
+        if (type.at("target_pop_name") == target_pop) {
+            target_edge_pops.insert(type.at("pop_name"));
+        }
+    }
+    return target_edge_pops;
+}
+
+std::unordered_set<std::string> csv_edge_record::edges_of_source(std::string source_pop) const {
+    std::unordered_set<std::string> source_edge_pops;
+
+    for (auto id: ids_) {
+        const auto& type = fields(id);
+        if (type.at("source_pop_name") == source_pop) {
+            source_edge_pops.insert(type.at("pop_name"));
+        }
+    }
+    return source_edge_pops;
+}
+
+arb::mechanism_desc csv_edge_record::point_mech_desc(type_pop_id id) const {
     if (point_params_.find(id) != point_params_.end()) {
         return point_params_.at(id);
     }

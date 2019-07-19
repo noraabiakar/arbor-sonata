@@ -52,8 +52,8 @@ class csv_record {
 public:
     csv_record(std::vector<csv_file> files);
 
-    std::vector<type_pop_id> unique_ids();
-    std::unordered_map<std::string, std::string> fields(type_pop_id id);
+    std::vector<type_pop_id> unique_ids() const;
+    std::unordered_map<std::string, std::string> fields(type_pop_id id) const;
 
 protected:
     std::vector<type_pop_id> ids_;
@@ -93,8 +93,16 @@ class csv_edge_record : public csv_record {
 public:
     csv_edge_record(std::vector<csv_file> files);
 
-    arb::mechanism_desc point_mech_desc(type_pop_id id);
+    arb::mechanism_desc point_mech_desc(type_pop_id id) const;
 
+    // Given a target population, return a pair of edge populations and source populations that are connected to the target population
+    std::vector<std::pair<std::string, std::string>> edge_to_source_of_target(std::string target_pop) const;
+
+    // Given a target population, return all edge populations that are connected to the target population
+    std::unordered_set<std::string> edges_of_target(std::string target_pop) const;
+
+    // Given a source population, return all edge populations that are connected to the source population
+    std::unordered_set<std::string> edges_of_source(std::string source_pop) const;
 private:
 
     // Map from type_pop_id to point_mechanisms_desc

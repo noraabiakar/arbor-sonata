@@ -174,8 +174,11 @@ public:
     // Returns h5_wrapper of group at index i in members_
     const h5_wrapper& operator[] (unsigned i) const;
 
+    // Returns h5_wrapper of group with name `name` in members_
+    const h5_wrapper& operator[] (std::string name) const;
+
     // Returns name of the wrapped h5_group
-    std::string name() const ;
+    std::string name() const;
 
 private:
     // Pointer to the h5_group wrapped in h5_wrapper
@@ -191,6 +194,11 @@ private:
     std::unordered_map<std::string, unsigned> member_map_;
 };
 
+struct local_element{
+    std::string pop_name;
+    unsigned el_id;
+};
+
 /// Class that stores sonata specific information about a collection of hdf5 files
 class h5_record {
 public:
@@ -202,6 +210,12 @@ public:
     // Verifies that the hdf5 files contain sonata node information
     bool verify_nodes();
 
+    // If gid < num_elements, return population and local id in population, otherwise return empty struct
+    local_element localize(unsigned gid) const;
+
+    // Given a population and local id in it, return gid
+    unsigned globalize(local_element n) const;
+
     // Returns total number of nodes/edges
     int num_elements() const;
 
@@ -211,6 +225,9 @@ public:
     // Returns the population at index `i` in populations_
     const h5_wrapper& operator [](int i) const;
 
+    // Returns names of all populations_
+    std::vector<std::string> pop_names() const;
+
     // Returns all populations
     std::vector<h5_wrapper> populations() const;
 
@@ -219,9 +236,6 @@ public:
 
     // Returns map_
     std::unordered_map<std::string, unsigned> map() const;
-
-    // Returns names of all populations_
-    std::vector<std::string> pop_names() const;
 
 private:
     // Total number of nodes/ edges

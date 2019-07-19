@@ -10,7 +10,173 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
-void database::build_current_clamp_map(std::vector<current_clamp_info> current) {
+cell_size_type database::num_cells() const {
+    return nodes_.num_elements();
+}
+
+cell_size_type database::num_edges() const {
+    return edges_.num_elements();
+}
+
+cell_size_type database::num_sources(cell_gid_type gid) const {
+    return source_maps_.at(gid).size();
+}
+
+cell_size_type database::num_targets(cell_gid_type gid) const {
+    return target_maps_.at(gid).size();
+}
+
+std::vector<unsigned> database::pop_partitions() const {
+    return nodes_.partitions();
+}
+
+std::vector<std::string> database::pop_names() const {
+    return nodes_.pop_names();
+}
+
+std::string database::population_of(cell_gid_type gid) const {
+    for (unsigned i = 0; i < nodes_.partitions().size(); i++) {
+        if (gid < nodes_.partitions()[i]) {
+            return nodes_.populations()[i-1].name();
+        }
+    }
+}
+
+unsigned database::population_id_of(cell_gid_type gid) const {
+    for (unsigned i = 0; i < nodes_.partitions().size(); i++) {
+        if (gid < nodes_.partitions()[i]) {
+            return gid - nodes_.partitions()[i-1];
+        }
+    }
+}
+
+void database::build_source_and_target_maps(const std::vector<arb::group_description>& groups) {
+    // Build loc_source_gids and loc_source_sizes
+    std::vector<cell_gid_type> loc_source_gids;
+    std::vector<unsigned> loc_source_sizes;
+    std::vector<source_type> loc_sources;
+
+    for (auto group: groups) {
+        loc_source_gids.insert(loc_source_gids.end(), group.gids.begin(), group.gids.end());
+        for (auto gid: group.gids) {
+            std::unordered_set<source_type> src_set;
+            std::vector<std::pair<target_type, unsigned>> tgt_vec;
+
+            auto loc_node = nodes_.localize(gid);
+            auto source_edge_pops = edge_types_.edges_of_source(loc_node.pop_name);
+            auto target_edge_pops = edge_types_.edges_of_target(loc_node.pop_name);
+
+            for (auto edge_pop_name: source_edge_pops) {
+                auto edge_pop = edges_.map()[edge_pop_name];
+                auto ind_id = edges_[edge_pop].find_group("indicies");
+                auto s2t_id = edges_[edge_pop][ind_id].find_group("source_to_target");
+                auto n2r_range = edges_[edge_pop][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+
+                for (auto j = n2r_range.first; j< n2r_range.second; j++) {
+                    auto r2e = edges_[edge_pop][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
+                    auto src_rng = source_range(edge_pop, r2e);
+                    for (auto s: src_rng) {
+                        auto loc = src_set.find(s);
+                        if (loc == src_set.end()) {
+                            src_set.insert(s);
+                        }
+                    }
+                }
+            }
+
+            for (auto edge_pop_name: target_edge_pops) {
+                auto edge_pop = edges_.map()[edge_pop_name];
+
+                auto ind_id = edges_[edge_pop].find_group("indicies");
+                auto t2s_id = edges_[edge_pop][ind_id].find_group("target_to_source");
+                auto n2r = edges_[edge_pop][ind_id][t2s_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+                for (auto j = n2r.first; j< n2r.second; j++) {
+                    auto r2e = edges_[edge_pop][ind_id][t2s_id].int_pair_at("range_to_edge_id", j);
+
+                    auto tgt_rng = target_range(edge_pop, r2e);
+
+                    std::vector<unsigned> edge_rng(r2e.second - r2e.first);
+                    std::iota(edge_rng.begin(), edge_rng.end(), r2e.first);
+
+                    for (unsigned k = 0; k < tgt_rng.size(); k++) {
+                        tgt_vec.push_back(std::make_pair(tgt_rng[k], edges_.globalize({edge_pop_name, (cell_gid_type)edge_rng[k]})));
+                    }
+                }
+            }
+
+            // Build loc_sources
+            std::vector<source_type> src_vec(src_set.begin(), src_set.end());
+            std::sort(src_vec.begin(), src_vec.end(), [](const auto &a, const auto& b) -> bool
+            {
+                return std::tie(a.segment, a.position) < std::tie(b.segment, b.position);
+            });
+
+            loc_sources.insert(loc_sources.end(), src_vec.begin(), src_vec.end());
+            loc_source_sizes.push_back(src_vec.size());
+
+            // Build target_maps_
+            std::sort(tgt_vec.begin(), tgt_vec.end(), [](const auto &a, const auto& b) -> bool
+            {
+                return a.second < b.second;
+            });
+            target_maps_[gid].insert(target_maps_[gid].end(), tgt_vec.begin(), tgt_vec.end());
+        }
+    }
+
+#ifdef ARB_MPI_ENABLED
+    auto glob_source_gids = gather_all(loc_source_gids, MPI_COMM_WORLD);
+    auto glob_source_sizes = gather_all(loc_source_sizes, MPI_COMM_WORLD);
+    auto glob_sources = gather_all(loc_sources, MPI_COMM_WORLD);
+#else
+    auto glob_source_gids = loc_source_gids;
+    auto glob_source_sizes = loc_source_sizes;
+    auto glob_sources = loc_sources;
+#endif
+
+    // Build source_maps
+    std::vector<unsigned> glob_source_divs(glob_source_sizes.size() + 1);
+    glob_source_divs[0] = 0;
+    for (unsigned i = 1; i < glob_source_sizes.size() + 1; i++) {
+        glob_source_divs[i] = glob_source_sizes[i-1] + glob_source_divs[i-1];
+    }
+
+    for (unsigned i = 0; i < glob_source_gids.size(); i++) {
+        auto r0 = glob_source_divs[i];
+        auto r1 = glob_source_divs[i + 1];
+        auto sub_v = std::vector<source_type>(glob_sources.begin() + r0, glob_sources.begin() + r1);
+
+        source_maps_[glob_source_gids[i]] = std::move(sub_v);
+    }
+}
+
+void database::read_spike_times(std::vector<spike_info> spikes) {
+    for (unsigned gid = 0; gid < num_cells(); gid++) {
+        std::vector<double> spike_times;
+
+        auto loc_cell = nodes_.localize(gid);
+
+        for (auto sp: spikes) {
+            if (loc_cell.pop_name != sp.population) {
+                continue;
+            }
+
+            auto spike_idx = sp.data.find_group("spikes");
+            if (spike_idx == -1) {
+                throw sonata_exception("Input spikes file doesn't have top level group \"spikes\"");
+            }
+            auto range = sp.data[spike_idx].int_pair_at("gid_to_range", loc_cell.el_id);
+
+            auto spk_times = sp.data[spike_idx].double_range("timestamps", range.first, range.second);
+
+            spike_times.insert(spike_times.end(), spk_times.begin(), spk_times.end());
+        }
+
+        std::sort(spike_times.begin(), spike_times.end());
+        spike_map_.insert({gid, std::move(spike_times)});
+    }
+}
+
+void database::read_current_clamps(std::vector<current_clamp_info> current) {
 
     struct param_info {
         double dur;
@@ -79,9 +245,9 @@ void database::build_current_clamp_map(std::vector<current_clamp_info> current) 
                 auto params = param_map.at(i.first);
 
                 auto local_loc = i.second;
-                auto global_gid = globalize_cell({local_loc.gid, nodes_.map()[local_loc.population]});
+                auto global_gid = nodes_.globalize({local_loc.population, local_loc.gid});
 
-                current_clamps_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
+                current_clamp_map_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
             }
             else {
                 throw sonata_exception("Electrode id has no corresponding input description");
@@ -90,110 +256,82 @@ void database::build_current_clamp_map(std::vector<current_clamp_info> current) 
     }
 }
 
-void database::build_source_and_target_maps(const std::vector<arb::group_description>& groups) {
-    // Build loc_source_gids and loc_source_sizes
-    std::vector<cell_gid_type> loc_source_gids;
-    std::vector<unsigned> loc_source_sizes;
-    std::vector<source_type> loc_sources;
+std::vector<current_clamp> database::get_current_clamps(cell_gid_type gid) const {
+    if (current_clamp_map_.find(gid) != current_clamp_map_.end()) {
+        return current_clamp_map_.at(gid);
+    }
+    return {};
+};
 
-    for (auto group: groups) {
-        loc_source_gids.insert(loc_source_gids.end(), group.gids.begin(), group.gids.end());
-        for (auto gid: group.gids) {
-            std::unordered_set<source_type> src_set;
-            std::vector<std::pair<target_type, unsigned>> tgt_vec;
+std::vector<double> database::get_spikes(cell_gid_type gid) const {
+    if (spike_map_.find(gid) != spike_map_.end()) {
+        return spike_map_.at(gid);
+    }
+    return {};
+};
 
-            auto loc_node = localize_cell(gid);
-            auto source_edge_pops = edges_of_source(loc_node.pop_id);
-            auto target_edge_pops = edges_of_target(loc_node.pop_id);
+void database::get_sources_and_targets(cell_gid_type gid, std::vector<segment_location>& src,
+        std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) const {
+    src.reserve(source_maps_.at(gid).size());
+    for (auto s: source_maps_.at(gid)) {
+        src.push_back(segment_location(s.segment, s.position));
+    }
 
-            for (auto i: source_edge_pops) {
-                auto ind_id = edges_[i].find_group("indicies");
-                auto s2t_id = edges_[i][ind_id].find_group("source_to_target");
-                auto n2r_range = edges_[i][ind_id][s2t_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
+    tgt.reserve(target_maps_.at(gid).size());
+    for (auto t: target_maps_.at(gid)) {
+        tgt.push_back(std::make_pair(segment_location(t.first.segment, t.first.position), t.first.synapse));
+    }
+}
 
-                for (auto j = n2r_range.first; j< n2r_range.second; j++) {
-                    auto r2e = edges_[i][ind_id][s2t_id].int_pair_at("range_to_edge_id", j);
-                    auto src_rng = source_range(i, r2e);
-                    for (auto s: src_rng) {
-                        auto loc = src_set.find(s);
-                        if (loc == src_set.end()) {
-                            src_set.insert(s);
-                        }
-                    }
-                }
-            }
+arb::morphology database::get_cell_morphology(cell_gid_type gid) {
+    auto loc_node = nodes_.localize(gid);
 
-            for (auto i: target_edge_pops) {
-                auto ind_id = edges_[i].find_group("indicies");
-                auto t2s_id = edges_[i][ind_id].find_group("target_to_source");
-                auto n2r = edges_[i][ind_id][t2s_id].int_pair_at("node_id_to_ranges", loc_node.el_id);
-                for (auto j = n2r.first; j< n2r.second; j++) {
-                    auto r2e = edges_[i][ind_id][t2s_id].int_pair_at("range_to_edge_id", j);
+    auto node_pop_name = loc_node.pop_name;
+    auto node_pop_id = nodes_.map()[node_pop_name];
+    auto node_id = loc_node.el_id;
 
-                    auto tgt_rng = target_range(i, r2e);
+    auto group_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
+    auto group_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
 
-                    std::vector<unsigned> edge_rng(r2e.second - r2e.first);
-                    std::iota(edge_rng.begin(), edge_rng.end(), r2e.first);
+    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
 
-                    for (unsigned k = 0; k < tgt_rng.size(); k++) {
-                        tgt_vec.push_back(std::make_pair(tgt_rng[k], globalize_edge({i, (cell_gid_type)edge_rng[k]})));
-                    }
-                }
-            }
+    if (nodes_[node_pop_id].find_group(std::to_string(group_id)) != -1) {
+        auto lgi = nodes_[node_pop_id].find_group(std::to_string(group_id));
+        auto group = nodes_[node_pop_id][lgi];
+        if (group.find_dataset("morphology") != -1) {
+            auto file = group.string_at("morphology", group_idx);
 
-            // Build loc_sources
-            std::vector<source_type> src_vec(src_set.begin(), src_set.end());
-            std::sort(src_vec.begin(), src_vec.end(), [](const auto &a, const auto& b) -> bool
-            {
-                return std::tie(a.segment, a.position) < std::tie(b.segment, b.position);
-            });
-
-            loc_sources.insert(loc_sources.end(), src_vec.begin(), src_vec.end());
-            loc_source_sizes.push_back(src_vec.size());
-
-            // Build target_maps_
-            std::sort(tgt_vec.begin(), tgt_vec.end(), [](const auto &a, const auto& b) -> bool
-            {
-                return a.second < b.second;
-            });
-            target_maps_[gid].insert(target_maps_[gid].end(), tgt_vec.begin(), tgt_vec.end());
+            std::ifstream f(file);
+            if (!f) throw sonata_exception("Unable to open SWC file");
+            return arb::swc_as_morphology(arb::parse_swc_file(f));
         }
     }
+    return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
+}
 
-#ifdef ARB_MPI_ENABLED
-    auto glob_source_gids = gather_all(loc_source_gids, MPI_COMM_WORLD);
-    auto glob_source_sizes = gather_all(loc_source_sizes, MPI_COMM_WORLD);
-    auto glob_sources = gather_all(loc_sources, MPI_COMM_WORLD);
-#else
-    auto glob_source_gids = loc_source_gids;
-    auto glob_source_sizes = loc_source_sizes;
-    auto glob_sources = loc_sources;
-#endif
+arb::cell_kind database::get_cell_kind(cell_gid_type gid) {
+    auto loc_node = nodes_.localize(gid);
 
-    // Build source_maps
-    std::vector<unsigned> glob_source_divs(glob_source_sizes.size() + 1);
-    glob_source_divs[0] = 0;
-    for (unsigned i = 1; i < glob_source_sizes.size() + 1; i++) {
-        glob_source_divs[i] = glob_source_sizes[i-1] + glob_source_divs[i-1];
-    }
+    auto node_pop_name = loc_node.pop_name;
+    auto node_pop_id = nodes_.map()[node_pop_name];
+    auto node_id = loc_node.el_id;
 
-    for (unsigned i = 0; i < glob_source_gids.size(); i++) {
-        auto r0 = glob_source_divs[i];
-        auto r1 = glob_source_divs[i + 1];
-        auto sub_v = std::vector<source_type>(glob_sources.begin() + r0, glob_sources.begin() + r1);
+    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
 
-        source_maps_[glob_source_gids[i]] = std::move(sub_v);
-    }
+    return node_types_.cell_kind(type_pop_id(node_type_tag, node_pop_name));
 }
 
 void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connection>& conns) {
     // Find cell local index in population
-    auto loc_node = localize_cell(gid);
-    auto edge_to_source = edge_to_source_of_target(loc_node.pop_id);
+    auto loc_node = nodes_.localize(gid);
+    auto edge_to_source = edge_types_.edge_to_source_of_target(loc_node.pop_name);
 
     for (auto i: edge_to_source) {
-        auto edge_pop = i.first;
-        auto source_pop = i.second;
+        auto source_pop_name = i.second;
+        auto edge_pop_name = i.first;
+
+        auto edge_pop = edges_.map()[i.first];
+        auto source_pop = nodes_.map()[i.second];
 
         auto ind_id = edges_[edge_pop].find_group("indicies");
         auto s2t_id = edges_[edge_pop][ind_id].find_group("target_to_source");
@@ -211,7 +349,7 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
             std::vector<cell_member_type> sources, targets;
 
             for(unsigned s = 0; s < src_rng.size(); s++) {
-                auto source_gid = globalize_cell({source_pop, (cell_gid_type)src_id[s]});
+                auto source_gid = nodes_.globalize({source_pop_name, (cell_gid_type)src_id[s]});
 
                 auto loc = std::lower_bound(source_maps_[source_gid].begin(), source_maps_[source_gid].end(), src_rng[s],
                                             [](const auto& lhs, const auto& rhs) -> bool
@@ -237,14 +375,14 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
             unsigned e = 0;
             for(unsigned t = r2e.first; t < r2e.second; t++, e++) {
                 auto loc = std::lower_bound(target_maps_[gid].begin(), target_maps_[gid].end(),
-                                            std::make_pair(tgt_rng[e], globalize_edge({edge_pop, (cell_gid_type)t})),
+                                            std::make_pair(tgt_rng[e], edges_.globalize({edge_pop_name, (cell_gid_type)t})),
                                             [](const auto& lhs, const auto& rhs) -> bool
                                             {
                                                 return lhs.second < rhs.second;
                                             });
 
                 if (loc != target_maps_[gid].end()) {
-                    if ((*loc).second == globalize_edge({edge_pop, (cell_gid_type)t})) {
+                    if ((*loc).second == edges_.globalize({edge_pop_name, (cell_gid_type)t})) {
                         unsigned index = loc - target_maps_[gid].begin();
                         targets.push_back({gid, index});
                     }
@@ -264,59 +402,10 @@ void database::get_connections(cell_gid_type gid, std::vector<arb::cell_connecti
     }
 }
 
-void database::get_sources_and_targets(cell_gid_type gid,
-                                       std::vector<segment_location>& src,
-                                       std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) {
-    src.reserve(source_maps_[gid].size());
-    for (auto s: source_maps_[gid]) {
-        src.push_back(segment_location(s.segment, s.position));
-    }
-
-    tgt.reserve(target_maps_[gid].size());
-    for (auto t: target_maps_[gid]) {
-        tgt.push_back(std::make_pair(segment_location(t.first.segment, t.first.position), t.first.synapse));
-    }
-}
-
-arb::morphology database::get_cell_morphology(cell_gid_type gid) {
-    auto loc_node = localize_cell(gid);
-    auto node_pop_id = loc_node.pop_id;
-    auto node_id = loc_node.el_id;
-
-    auto group_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
-    auto group_idx = nodes_[node_pop_id].int_at("node_group_index", node_id);
-
-    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
-    auto node_pop_name = nodes_[node_pop_id].name();
-
-    if (nodes_[node_pop_id].find_group(std::to_string(group_id)) != -1) {
-        auto lgi = nodes_[node_pop_id].find_group(std::to_string(group_id));
-        auto group = nodes_[node_pop_id][lgi];
-        if (group.find_dataset("morphology") != -1) {
-            auto file = group.string_at("morphology", group_idx);
-
-            std::ifstream f(file);
-            if (!f) throw sonata_exception("Unable to open SWC file");
-            return arb::swc_as_morphology(arb::parse_swc_file(f));
-        }
-    }
-    return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
-}
-
-arb::cell_kind database::get_cell_kind(cell_gid_type gid) {
-    auto loc_node = localize_cell(gid);
-    auto node_pop_id = loc_node.pop_id;
-    auto node_id = loc_node.el_id;
-
-    auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
-    auto node_pop_name = nodes_[node_pop_id].name();
-
-    return node_types_.cell_kind(type_pop_id(node_type_tag, node_pop_name));
-}
-
 std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_density_mechs(cell_gid_type gid) {
-    auto loc_node = localize_cell(gid);
-    auto node_pop_id = loc_node.pop_id;
+    auto loc_node = nodes_.localize(gid);
+    auto node_pop_name = loc_node.pop_name;
+    auto node_pop_id = nodes_.map()[node_pop_name];
     auto node_id = loc_node.el_id;
 
     auto nodes_grp_id = nodes_[node_pop_id].int_at("node_group_id", node_id);
@@ -351,39 +440,6 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
     }
     node_types_.override_density_params(node_unique_id, std::move(density_vars));
     return node_types_.density_mech_desc(node_unique_id);
-}
-
-std::vector<double> database::get_spikes(cell_gid_type gid) {
-    std::vector<double> spike_times;
-
-    auto loc_cell = localize_cell(gid);
-
-    for (auto sp: spikes_) {
-        if (nodes_[loc_cell.pop_id].name() != sp.population) {
-            continue;
-        }
-
-        auto spike_idx = sp.data.find_group("spikes");
-        if (spike_idx == -1) {
-            throw sonata_exception("Input spikes file doesn't have top level group \"spikes\"");
-        }
-        auto range = sp.data[spike_idx].int_pair_at("gid_to_range", loc_cell.el_id);
-
-        auto spk_times = sp.data[spike_idx].double_range("timestamps", range.first, range.second);
-
-        spike_times.insert(spike_times.end(), spk_times.begin(), spk_times.end());
-    }
-
-    std::sort(spike_times.begin(), spike_times.end());
-    return spike_times;
-};
-
-unsigned database::num_sources(cell_gid_type gid) {
-    return source_maps_[gid].size();
-}
-
-unsigned database::num_targets(cell_gid_type gid) {
-    return target_maps_[gid].size();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
