@@ -72,6 +72,7 @@ TEST(hdf5_record, verify_nodes) {
 }
 
 TEST(hdf5_record, verify_edges) {
+    using int_pair = std::pair<int,int>;
     std::string datadir{DATADIR};
 
     auto filename0 = datadir + "/edges_0.h5";
@@ -112,16 +113,16 @@ TEST(hdf5_record, verify_edges) {
     EXPECT_EQ(r[3].name(), r["pop_ext_e"].name());
 
     EXPECT_EQ(2, r["pop_e_i"].dataset_size("edge_group_id"));
-    EXPECT_EQ(0, r["pop_e_i"].int_at("edge_group_id",0));
-    EXPECT_EQ(1, r["pop_e_i"].int_at("edge_group_id",1));
+    EXPECT_EQ(0, r["pop_e_i"].get<int>("edge_group_id",0));
+    EXPECT_EQ(1, r["pop_e_i"].get<int>("edge_group_id",1));
 
     EXPECT_EQ(2, r["pop_e_i"].dataset_size("edge_group_index"));
-    EXPECT_EQ(0, r["pop_e_i"].int_at("edge_group_index",0));
-    EXPECT_EQ(0, r["pop_e_i"].int_at("edge_group_index",1));
+    EXPECT_EQ(0, r["pop_e_i"].get<int>("edge_group_index",0));
+    EXPECT_EQ(0, r["pop_e_i"].get<int>("edge_group_index",1));
 
     EXPECT_EQ(2, r["pop_e_i"].dataset_size("edge_type_id"));
-    EXPECT_EQ(103, r["pop_e_i"].int_at("edge_type_id",0));
-    EXPECT_EQ(103, r["pop_e_i"].int_at("edge_type_id",1));
+    EXPECT_EQ(103, r["pop_e_i"].get<int>("edge_type_id",0));
+    EXPECT_EQ(103, r["pop_e_i"].get<int>("edge_type_id",1));
 
     EXPECT_NE(-1, r["pop_e_i"].find_group("0"));
     EXPECT_NE(-1, r["pop_e_i"].find_group("1"));
@@ -132,36 +133,36 @@ TEST(hdf5_record, verify_edges) {
     EXPECT_NE(-1, r["pop_e_e"].find_group("0"));
     EXPECT_EQ(-1, r["pop_e_e"].find_group("1"));
 
-    EXPECT_EQ(0,   r["pop_e_i"]["0"].int_at("afferent_section_id", 0));
-    EXPECT_NEAR(0.4, r["pop_e_i"]["0"].double_at("afferent_section_pos", 0), 1e-5);
-    EXPECT_EQ(1,   r["pop_e_i"]["0"].int_at("efferent_section_id", 0));
-    EXPECT_NEAR(0.3, r["pop_e_i"]["0"].double_at("efferent_section_pos", 0), 1e-5);
+    EXPECT_EQ(0,   r["pop_e_i"]["0"].get<int>("afferent_section_id", 0));
+    EXPECT_NEAR(0.4, r["pop_e_i"]["0"].get<double>("afferent_section_pos", 0), 1e-5);
+    EXPECT_EQ(1,   r["pop_e_i"]["0"].get<int>("efferent_section_id", 0));
+    EXPECT_NEAR(0.3, r["pop_e_i"]["0"].get<double>("efferent_section_pos", 0), 1e-5);
 
-    EXPECT_EQ(2,   r["pop_e_i"]["1"].int_at("afferent_section_id", 0));
-    EXPECT_NEAR(0.1, r["pop_e_i"]["1"].double_at("afferent_section_pos", 0), 1e-5);
-    EXPECT_EQ(3,   r["pop_e_i"]["1"].int_at("efferent_section_id", 0));
-    EXPECT_NEAR(0.2, r["pop_e_i"]["1"].double_at("efferent_section_pos", 0), 1e-5);
+    EXPECT_EQ(2,   r["pop_e_i"]["1"].get<int>("afferent_section_id", 0));
+    EXPECT_NEAR(0.1, r["pop_e_i"]["1"].get<double>("afferent_section_pos", 0), 1e-5);
+    EXPECT_EQ(3,   r["pop_e_i"]["1"].get<int>("efferent_section_id", 0));
+    EXPECT_NEAR(0.2, r["pop_e_i"]["1"].get<double>("efferent_section_pos", 0), 1e-5);
 
-    EXPECT_EQ(0,   r["pop_i_e"]["0"].int_at("afferent_section_id", 0));
-    EXPECT_NEAR(0.5, r["pop_i_e"]["0"].double_at("afferent_section_pos", 0), 1e-5);
-    EXPECT_EQ(0,   r["pop_i_e"]["0"].int_at("efferent_section_id", 0));
-    EXPECT_NEAR(0.9, r["pop_i_e"]["0"].double_at("efferent_section_pos", 0), 1e-5);
+    EXPECT_EQ(0,   r["pop_i_e"]["0"].get<int>("afferent_section_id", 0));
+    EXPECT_NEAR(0.5, r["pop_i_e"]["0"].get<double>("afferent_section_pos", 0), 1e-5);
+    EXPECT_EQ(0,   r["pop_i_e"]["0"].get<int>("efferent_section_id", 0));
+    EXPECT_NEAR(0.9, r["pop_i_e"]["0"].get<double>("efferent_section_pos", 0), 1e-5);
 
-    EXPECT_EQ(5,   r["pop_e_e"]["0"].int_at("afferent_section_id", 0));
-    EXPECT_NEAR(0.6, r["pop_e_e"]["0"].double_at("afferent_section_pos", 0), 1e-5);
-    EXPECT_EQ(1,   r["pop_e_e"]["0"].int_at("efferent_section_id", 0));
-    EXPECT_NEAR(0.2, r["pop_e_e"]["0"].double_at("efferent_section_pos", 0), 1e-5);
+    EXPECT_EQ(5,   r["pop_e_e"]["0"].get<int>("afferent_section_id", 0));
+    EXPECT_NEAR(0.6, r["pop_e_e"]["0"].get<double>("afferent_section_pos", 0), 1e-5);
+    EXPECT_EQ(1,   r["pop_e_e"]["0"].get<int>("efferent_section_id", 0));
+    EXPECT_NEAR(0.2, r["pop_e_e"]["0"].get<double>("efferent_section_pos", 0), 1e-5);
 
-    EXPECT_EQ(std::make_pair(0,1), r["pop_e_i"]["indicies"]["source_to_target"].int_pair_at("node_id_to_ranges", 0));
-    EXPECT_EQ(std::make_pair(1,1), r["pop_e_i"]["indicies"]["source_to_target"].int_pair_at("node_id_to_ranges", 1));
-    EXPECT_EQ(std::make_pair(1,2), r["pop_e_i"]["indicies"]["source_to_target"].int_pair_at("node_id_to_ranges", 2));
-    EXPECT_EQ(std::make_pair(2,2), r["pop_e_i"]["indicies"]["source_to_target"].int_pair_at("node_id_to_ranges", 3));
+    EXPECT_EQ(std::make_pair(0,1), r["pop_e_i"]["indicies"]["source_to_target"].get<int_pair>("node_id_to_ranges", 0));
+    EXPECT_EQ(std::make_pair(1,1), r["pop_e_i"]["indicies"]["source_to_target"].get<int_pair>("node_id_to_ranges", 1));
+    EXPECT_EQ(std::make_pair(1,2), r["pop_e_i"]["indicies"]["source_to_target"].get<int_pair>("node_id_to_ranges", 2));
+    EXPECT_EQ(std::make_pair(2,2), r["pop_e_i"]["indicies"]["source_to_target"].get<int_pair>("node_id_to_ranges", 3));
 
-    EXPECT_EQ(std::make_pair(0,1), r["pop_e_i"]["indicies"]["source_to_target"].int_pair_at("range_to_edge_id", 0));
-    EXPECT_EQ(std::make_pair(1,2), r["pop_e_i"]["indicies"]["source_to_target"].int_pair_at("range_to_edge_id", 1));
+    EXPECT_EQ(std::make_pair(0,1), r["pop_e_i"]["indicies"]["source_to_target"].get<int_pair>("range_to_edge_id", 0));
+    EXPECT_EQ(std::make_pair(1,2), r["pop_e_i"]["indicies"]["source_to_target"].get<int_pair>("range_to_edge_id", 1));
 
-    EXPECT_EQ(0, r["pop_e_i"].int_at("source_node_id", 0));
-    EXPECT_EQ(0, r["pop_e_i"].int_at("target_node_id", 0));
-    EXPECT_EQ(2, r["pop_e_i"].int_at("source_node_id", 1));
-    EXPECT_EQ(0, r["pop_e_i"].int_at("target_node_id", 1));
+    EXPECT_EQ(0, r["pop_e_i"].get<int>("source_node_id", 0));
+    EXPECT_EQ(0, r["pop_e_i"].get<int>("target_node_id", 0));
+    EXPECT_EQ(2, r["pop_e_i"].get<int>("source_node_id", 1));
+    EXPECT_EQ(0, r["pop_e_i"].get<int>("target_node_id", 1));
 }
