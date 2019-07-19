@@ -13,7 +13,7 @@ public:
     // Constructor from parent (hdf5 group) id and dataset name - finds size of the dataset
     h5_dataset(hid_t parent, std::string name);
 
-    // Constructor from parent (hdf5 group) id and dataset name - creates int/double dataset with size `size`
+    // Constructor from parent (hdf5 group) id and dataset name - creates andf writes dataset `data`
     h5_dataset(hid_t parent, std::string name, std::vector<int> data);
 
     h5_dataset(hid_t parent, std::string name, std::vector<double> data);

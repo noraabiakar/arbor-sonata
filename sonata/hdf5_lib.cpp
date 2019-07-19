@@ -14,8 +14,8 @@
 ///h5_dataset methods
 
 h5_dataset::h5_dataset(hid_t parent, std::string name): parent_id_(parent), name_(name) {
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     const int ndims = H5Sget_simple_extent_ndims(dspace);
 
@@ -25,63 +25,63 @@ h5_dataset::h5_dataset(hid_t parent, std::string name): parent_id_(parent), name
     size_ = dims[0];
 
     H5Sclose(dspace);
-    H5Dclose(id_);
+    H5Dclose(id);
 }
 
 h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<int> data): parent_id_(parent), name_(name) {
     hsize_t size = data.size();
     auto dspace = H5Screate_simple(1, &size, NULL);
 
-    auto id_ = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    auto id = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     int arr[size];
     std::copy(data.begin(), data.end(), arr);
-    H5Dwrite(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+    H5Dwrite(id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
 
     H5Sclose(dspace);
-    H5Dclose(id_);
+    H5Dclose(id);
 }
 
 h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<double> data): parent_id_(parent), name_(name) {
     hsize_t size = data.size();
     auto dspace = H5Screate_simple(1, &size, NULL);
 
-    auto id_ = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_DOUBLE, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    auto id = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_DOUBLE, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     double arr[size];
     std::copy(data.begin(), data.end(), arr);
-    H5Dwrite(id_, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+    H5Dwrite(id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
 
     H5Sclose(dspace);
-    H5Dclose(id_);
+    H5Dclose(id);
 }
 
 h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<std::vector<int>> data): parent_id_(parent), name_(name) {
     hsize_t dims_data[2] = {data.size(), data.front().size()};
     auto dspace = H5Screate_simple(2, dims_data, NULL);
 
-    auto id_ = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    auto id = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_INT, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     int arr[data.size()][data.front().size()];
     for (unsigned i = 0; i < data.size(); i++) {
         std::copy(data[i].begin(), data[i].end(), arr[i]);
     }
-    H5Dwrite(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+    H5Dwrite(id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
 
     H5Sclose(dspace);
-    H5Dclose(id_);
+    H5Dclose(id);
 }
 
 h5_dataset::h5_dataset(hid_t parent, std::string name, std::vector<std::vector<double>> data): parent_id_(parent), name_(name) {
     hsize_t dims_data[2] = {data.size(), data.front().size()};
     auto dspace = H5Screate_simple(2, dims_data, NULL);
 
-    auto id_ = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_DOUBLE, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    auto id = H5Dcreate(parent_id_, name.c_str(), H5T_NATIVE_DOUBLE, dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     double arr[data.size()][data.front().size()];
     for (unsigned i = 0; i < data.size(); i++) {
         std::copy(data[i].begin(), data[i].end(), arr[i]);
     }
-    H5Dwrite(id_, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
+    H5Dwrite(id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr);
 
     H5Sclose(dspace);
-    H5Dclose(id_);
+    H5Dclose(id);
 }
 
 std::string h5_dataset::name() {
@@ -105,18 +105,18 @@ auto h5_dataset::int_at(const int i) {
     // Output size
     hsize_t num_elements = 1;
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
 
     hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status = H5Dread(id_, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, out);
+    auto status = H5Dread(id, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, out);
 
     H5Sclose(dspace);
     H5Sclose(out_mem);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0 ) {
         throw sonata_dataset_exception(name_, (unsigned)i);
@@ -141,17 +141,17 @@ auto h5_dataset::double_at(const int i) {
     // Output size
     hsize_t num_elements = 1;
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
     hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status = H5Dread(id_, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, out);
+    auto status = H5Dread(id, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, out);
 
     H5Sclose(dspace);
     H5Sclose(out_mem);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i);
@@ -220,17 +220,17 @@ auto h5_dataset::int_range(const int i, const int j) {
 
     int rdata[count];
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     hid_t out_mem = H5Screate_simple(1, &dimsm, NULL);
 
     H5Sselect_hyperslab(dspace, H5S_SELECT_SET, &offset, &stride, &count, &block);
-    auto status = H5Dread(id_, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, rdata);
+    auto status = H5Dread(id, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, rdata);
 
     H5Sclose(dspace);
     H5Sclose(out_mem);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
@@ -250,18 +250,18 @@ auto h5_dataset::double_range(const int i, const int j) {
 
     double rdata[count];
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     hid_t out_mem = H5Screate_simple(1, &dimsm, NULL);
 
     H5Sselect_hyperslab(dspace, H5S_SELECT_SET, &offset, &stride, &count, &block);
 
-    auto status = H5Dread(id_, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, rdata);
+    auto status = H5Dread(id, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, rdata);
 
     H5Sclose(dspace);
     H5Sclose(out_mem);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
@@ -285,25 +285,25 @@ auto h5_dataset::int_pair_at(const int i) {
     // Output size
     hsize_t num_elements = 1;
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    hid_t dspace = H5Dget_space(id);
 
     H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, idx_0);
     hid_t out_mem_0 = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status0 = H5Dread(id_, H5T_NATIVE_INT, out_mem_0, dspace, H5P_DEFAULT, &out_0);
+    auto status0 = H5Dread(id, H5T_NATIVE_INT, out_mem_0, dspace, H5P_DEFAULT, &out_0);
 
     const hsize_t idx_1[2] = {(hsize_t)i, (hsize_t)1};
 
     H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, idx_1);
     hid_t out_mem_1 = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status1 = H5Dread(id_, H5T_NATIVE_INT, out_mem_1, dspace, H5P_DEFAULT, &out_1);
+    auto status1 = H5Dread(id, H5T_NATIVE_INT, out_mem_1, dspace, H5P_DEFAULT, &out_1);
 
     H5Sclose(dspace);
     H5Sclose(out_mem_0);
     H5Sclose(out_mem_1);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status0 < 0 || status1 < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i);
@@ -314,11 +314,11 @@ auto h5_dataset::int_pair_at(const int i) {
 
 auto h5_dataset::int_1d() {
     int out_a[size_];
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
 
-    auto status = H5Dread(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+    auto status = H5Dread(id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
             out_a);
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_);
@@ -331,11 +331,11 @@ auto h5_dataset::int_1d() {
 
 auto h5_dataset::int_2d() {
     int out_a[size_][2];
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    auto id = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
 
-    auto status = H5Dread(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out_a);
+    auto status = H5Dread(id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out_a);
 
-    H5Dclose(id_);
+    H5Dclose(id);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_);
