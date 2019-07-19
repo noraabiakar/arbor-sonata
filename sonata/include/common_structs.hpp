@@ -14,23 +14,49 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
+struct sim_conditions {
+    double temp_c;
+    double v_init;
+};
+
+struct run_params {
+    double duration;
+    double dt;
+    double threshold;
+};
+
+struct probe_info {
+    std::string kind;
+    std::string population;
+    std::vector<unsigned> node_ids;
+    unsigned sec_id;
+    double sec_pos;
+
+    std::string file_name;
+};
+
 struct current_clamp_info {
     csv_file stim_params;
     csv_file stim_loc;
 };
 
-struct spike_info {
+struct spike_out_info {
+    std::string file_name;
+    std::string sort_by;
+};
+
+struct spike_in_info {
     h5_wrapper data;
     std::string population;
 };
 
-struct current_clamp {
+struct current_clamp_desc {
     double duration;
     double amplitude;
     double delay;
     arb::segment_location stim_loc;
 
-    current_clamp(double dur, double amp, double del, arb::segment_location loc):
+    current_clamp_desc(double dur, double amp, double del, arb::segment_location loc):
             duration(dur), amplitude(amp), delay(del), stim_loc(loc){}
 };
 
@@ -67,6 +93,14 @@ struct trace_info {
     double seg_pos;
 
     arb::trace_data<double> data;
+
+    trace_info() {};
+
+    trace_info(arb::cell_probe_address p) {
+        is_voltage = p.kind == arb::cell_probe_address::membrane_voltage;
+        seg_id = p.location.segment;
+        seg_pos = p.location.position;
+    };
 };
 
 
