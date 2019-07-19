@@ -1,8 +1,8 @@
 #include <arbor/version.hpp>
 #include <arbor/mechcat.hpp>
 
-#include "data_management_lib.hpp"
-#include "include/mpi_helper.hpp"
+#include "include/data_management_lib.hpp"
+#include "mpi_helper.hpp"
 
 using arb::cell_gid_type;
 using arb::cell_lid_type;
@@ -311,7 +311,7 @@ arb::cell_kind database::get_cell_kind(cell_gid_type gid) {
     auto node_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
     auto node_pop_name = nodes_[node_pop_id].name();
 
-    return node_types_.get_cell_kind(type_pop_id(node_type_tag, node_pop_name));
+    return node_types_.cell_kind(type_pop_id(node_type_tag, node_pop_name));
 }
 
 std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_density_mechs(cell_gid_type gid) {
@@ -325,7 +325,9 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
     auto nodes_type_tag = nodes_[node_pop_id].int_at("node_type_id", node_id);
     auto nodes_pop_name = nodes_[node_pop_id].name();
 
-    auto density_vars = node_types_.dynamic_params(type_pop_id(nodes_type_tag, nodes_pop_name));
+    auto node_unique_id = type_pop_id(nodes_type_tag, nodes_pop_name);
+
+    auto density_vars = node_types_.dynamic_params(node_unique_id);
 
     for (auto id: density_vars) {
         auto gp_id = id.first;
@@ -347,7 +349,8 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
             }
         }
     }
-    return node_types_.density_mech_desc(type_pop_id(nodes_type_tag, nodes_pop_name), std::move(density_vars));
+    node_types_.override_density_params(node_unique_id, std::move(density_vars));
+    return node_types_.density_mech_desc(node_unique_id);
 }
 
 std::vector<double> database::get_spikes(cell_gid_type gid) {

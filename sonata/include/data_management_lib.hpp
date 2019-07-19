@@ -8,11 +8,10 @@
 #include <string>
 #include <unordered_set>
 
-#include "include/hdf5_lib.hpp"
-#include "include/csv_lib.hpp"
-#include "include/sonata_excpetions.hpp"
-#include "include/common_structs.hpp"
-
+#include "hdf5_lib.hpp"
+#include "csv_lib.hpp"
+#include "sonata_exceptions.hpp"
+#include "common_structs.hpp"
 
 using arb::cell_gid_type;
 using arb::cell_lid_type;
@@ -22,10 +21,10 @@ using arb::segment_location;
 
 class database {
 public:
-    database(hdf5_record nodes,
-             hdf5_record edges,
-             csv_record node_types,
-             csv_record edge_types,
+    database(h5_record nodes,
+             h5_record edges,
+             csv_node_record node_types,
+             csv_edge_record edge_types,
              std::vector<spike_info> spikes,
              std::vector<current_clamp_info> current_clamp):
     nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types), spikes_(spikes) {
@@ -126,8 +125,8 @@ private:
     std::unordered_map<unsigned, unsigned> edge_to_source_of_target(unsigned target_pop) {
         std::unordered_map <unsigned, unsigned> edge_to_source;
 
-        for (auto edge_type: edge_types_.data()) {
-            auto type = edge_type.second;
+        for (auto id: edge_types_.unique_ids()) {
+            auto type = edge_types_.fields(id);
             if (type["target_pop_name"] == nodes_[target_pop].name()) {
                 edge_to_source[edges_.map()[type["pop_name"]]] = nodes_.map()[type["source_pop_name"]];
             }
@@ -138,8 +137,8 @@ private:
     std::unordered_set<unsigned> edges_of_target(unsigned target_pop) {
         std::unordered_set<unsigned> target_edge_pops;
 
-        for (auto edge_type: edge_types_.data()) {
-            auto type = edge_type.second;
+        for (auto id: edge_types_.unique_ids()) {
+            auto type = edge_types_.fields(id);
             if (type["target_pop_name"] == nodes_[target_pop].name()) {
                 target_edge_pops.insert(edges_.map()[type["pop_name"]]);
             }
@@ -150,8 +149,8 @@ private:
     std::unordered_set<unsigned> edges_of_source(unsigned source_pop) {
         std::unordered_set<unsigned> source_edge_pops;
 
-        for (auto edge_type: edge_types_.data()) {
-            auto type = edge_type.second;
+        for (auto id: edge_types_.unique_ids()) {
+            auto type = edge_types_.fields(id);
             if (type["source_pop_name"] == nodes_[source_pop].name()) {
                 source_edge_pops.insert(edges_.map()[type["pop_name"]]);
             }
@@ -159,10 +158,10 @@ private:
         return source_edge_pops;
     }
 
-    hdf5_record nodes_;
-    hdf5_record edges_;
-    csv_record node_types_;
-    csv_record edge_types_;
+    h5_record nodes_;
+    h5_record edges_;
+    csv_node_record node_types_;
+    csv_edge_record edge_types_;
 
     std::unordered_map<cell_gid_type, std::vector<current_clamp>> current_clamps_;
     std::vector<spike_info> spikes_;

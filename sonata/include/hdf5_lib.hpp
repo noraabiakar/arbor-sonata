@@ -5,286 +5,74 @@
 
 #include <hdf5.h>
 
-#include "sonata_excpetions.hpp"
-
-#define MAX_NAME 1024
-
+/// Class for reading from hdf5 datasets
+/// Datasets are opened and closed every time they are read
 class h5_dataset {
-private:
-    hid_t parent_id_;
-    std::string name_;
-    size_t size_;
-
 public:
-    h5_dataset(hid_t parent, std::string name): parent_id_(parent), name_(name) {
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-        hid_t dspace = H5Dget_space(id_);
+    // Constructor from parent (hdf5 group) id and dataset name - finds size of the dataset
+    h5_dataset(hid_t parent, std::string name);
 
-        const int ndims = H5Sget_simple_extent_ndims(dspace);
+    // returns name of dataset
+    std::string name();
 
-        hsize_t dims[ndims];
-        H5Sget_simple_extent_dims(dspace, dims, NULL);
+    // returns number of elements in a dataset
+    int size();
 
-        size_ = dims[0];
+    // Read integer at index `i`; throws exception if out of bounds
+    auto int_at(const int i);
 
-        H5Dclose(id_);
-    }
+    // Read double at index `i`; throws exception if out of bounds
+    auto double_at(const int i);
 
-    std::string name() {
-        return name_;
-    }
+    // Read string at index `i`; throws exception if out of bounds
+    auto string_at(const int i);
 
-    int size() {
-        return size_;
-    }
+    // Read range of integers between indices `i` and `j`; throws exception if out of bounds
+    auto int_range(const int i, const int j);
 
-    auto int_at(const int i) {
-        const hsize_t idx = (hsize_t)i;
+    // Read range of doubles between indices `i` and `j`; throws exception if out of bounds
+    auto double_range(const int i, const int j);
 
-        // Output
-        int *out = new int[1];
+    // Read integer pair at index `i` (dataset has dimensions size() x 2)
+    // Throws exception if out of bounds
+    auto int_pair_at(const int i);
 
-        // Output dimensions 1x1
-        hsize_t dims = 1;
-        hsize_t dim_sizes[] = {1};
+    // Read all 1D integer dataset
+    auto int_1d();
 
-        // Output size
-        hsize_t num_elements = 1;
+    // Read all 2D integer dataset
+    auto int_2d();
 
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-        hid_t dspace = H5Dget_space(id_);
+private:
+    // id of parent group
+    hid_t parent_id_;
 
-        H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
+    // name of dataset
+    std::string name_;
 
-        hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
-
-        auto status = H5Dread(id_, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, out);
-
-        H5Sclose(dspace);
-        H5Sclose(out_mem);
-        H5Dclose(id_);
-
-        if (status < 0 ) {
-            throw sonata_dataset_exception(name_, (unsigned)i);
-        }
-
-        int r = out[0];
-        delete [] out;
-
-        return r;
-    }
-
-    auto double_at(const int i) {
-        const hsize_t idx = (hsize_t)i;
-
-        // Output
-        double *out = new double[1];
-
-        // Output dimensions 1x1
-        hsize_t dims = 1;
-        hsize_t dim_sizes[] = {1};
-
-        // Output size
-        hsize_t num_elements = 1;
-
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-        hid_t dspace = H5Dget_space(id_);
-
-        H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
-        hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
-
-        auto status = H5Dread(id_, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, out);
-
-        H5Sclose(dspace);
-        H5Sclose(out_mem);
-        H5Dclose(id_);
-
-        if (status < 0) {
-            throw sonata_dataset_exception(name_, (unsigned)i);
-        }
-
-        double r = out[0];
-        delete [] out;
-
-        return r;
-    }
-
-    auto string_at(const int i) {
-        const hsize_t idx = (hsize_t)i;
-
-        // Output
-        char *out = new char[1];
-
-        // Output dimensions 1x1
-        hsize_t dims = 1;
-        hsize_t dim_sizes[] = {1};
-
-        // Output size
-        hsize_t num_elements = 1;
-
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-        hid_t dspace = H5Dget_space(id_);
-
-        H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
-        hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
-
-        auto status = H5Dread(id_, H5T_NATIVE_CHAR, out_mem, dspace, H5P_DEFAULT, out);
-
-        H5Sclose(dspace);
-        H5Sclose(out_mem);
-        H5Dclose(id_);
-
-        if (status < 0) {
-            throw sonata_dataset_exception(name_, (unsigned)i);
-        }
-
-        int r = out[0];
-        delete [] out;
-
-        return r;
-    }
-
-    auto int_range(const int i, const int j) {
-        hsize_t offset = i;
-        hsize_t count = j-i;
-        hsize_t stride = 1;
-        hsize_t  block = 1;
-        hsize_t dimsm = count;
-
-        int rdata[count];
-
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-        hid_t dspace = H5Dget_space(id_);
-
-        hid_t out_mem = H5Screate_simple(1, &dimsm, NULL);
-
-        H5Sselect_hyperslab(dspace, H5S_SELECT_SET, &offset, &stride, &count, &block);
-        auto status = H5Dread(id_, H5T_NATIVE_INT, out_mem, dspace, H5P_DEFAULT, rdata);
-
-        H5Sclose(dspace);
-        H5Sclose(out_mem);
-        H5Dclose(id_);
-
-        if (status < 0) {
-            throw sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
-        }
-
-        std::vector<int> out(rdata, rdata + count);
-
-        return out;
-    }
-
-    auto double_range(const int i, const int j) {
-        hsize_t offset = i;
-        hsize_t count = j-i;
-        hsize_t stride = 1;
-        hsize_t  block = 1;
-        hsize_t dimsm = count;
-
-        double rdata[count];
-
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-        hid_t dspace = H5Dget_space(id_);
-
-        hid_t out_mem = H5Screate_simple(1, &dimsm, NULL);
-
-        H5Sselect_hyperslab(dspace, H5S_SELECT_SET, &offset, &stride, &count, &block);
-
-        auto status = H5Dread(id_, H5T_NATIVE_DOUBLE, out_mem, dspace, H5P_DEFAULT, rdata);
-
-        H5Sclose(dspace);
-        H5Sclose(out_mem);
-        H5Dclose(id_);
-
-        if (status < 0) {
-            throw sonata_dataset_exception(name_, (unsigned)i, (unsigned)j);
-        }
-
-        std::vector<double> out(rdata, rdata + count);
-
-        return out;
-    }
-
-    auto int_pair_at(const int i) {
-        const hsize_t idx_0[2] = {(hsize_t)i, (hsize_t)0};
-
-        // Output
-        int out_0, out_1;
-
-        // Output dimensions 1x1
-        hsize_t dims = 1;
-        hsize_t dim_sizes[] = {1};
-
-        // Output size
-        hsize_t num_elements = 1;
-
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-        hid_t dspace = H5Dget_space(id_);
-
-        H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, idx_0);
-        hid_t out_mem_0 = H5Screate_simple(dims, dim_sizes, NULL);
-
-        auto status0 = H5Dread(id_, H5T_NATIVE_INT, out_mem_0, dspace, H5P_DEFAULT, &out_0);
-
-        const hsize_t idx_1[2] = {(hsize_t)i, (hsize_t)1};
-
-        H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, idx_1);
-        hid_t out_mem_1 = H5Screate_simple(dims, dim_sizes, NULL);
-
-        auto status1 = H5Dread(id_, H5T_NATIVE_INT, out_mem_1, dspace, H5P_DEFAULT, &out_1);
-
-        H5Sclose(dspace);
-        H5Sclose(out_mem_0);
-        H5Sclose(out_mem_1);
-        H5Dclose(id_);
-
-        if (status0 < 0 || status1 < 0) {
-            throw sonata_dataset_exception(name_, (unsigned)i);
-        }
-
-        return std::make_pair(out_0, out_1);
-    }
-
-    auto int_1d() {
-        int out_a[size_];
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-
-        auto status = H5Dread(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                out_a);
-        H5Dclose(id_);
-
-        if (status < 0) {
-            throw sonata_dataset_exception(name_);
-        }
-
-        std::vector<int> out(out_a, out_a + size_);
-
-        return out;
-    }
-
-    auto int_2d() {
-        int out_a[size_][2];
-        auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-
-        auto status = H5Dread(id_, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out_a);
-
-        H5Dclose(id_);
-
-        if (status < 0) {
-            throw sonata_dataset_exception(name_);
-        }
-
-        std::vector<std::pair<int, int>> out(size_);
-        for (unsigned i = 0; i < size_; i++) {
-            out[i] = std::make_pair(out_a[i][0], out_a[i][1]);
-        }
-
-        return out;
-    }
+    // First dimension of dataset
+    size_t size_;
 };
 
+
+/// Class for keeping track of what's in an hdf5 group (groups and datasets with pointers to each)
 class h5_group {
+public:
+    // Constructor from parent (hdf5 group) id and group name
+    // Builds tree of groups, each with it's own sub-groups and datasets
+    h5_group(hid_t parent, std::string name);
+
+    // Returns name of group
+    std::string name();
+
+    // hdf5 groups belonging to group
+    std::vector<std::shared_ptr<h5_group>> groups_;
+
+    // hdf5 datasets belonging to group
+    std::vector<std::shared_ptr<h5_dataset>> datasets_;
+
 private:
+    // RAII to handle recursive opening/closing groups
     struct group_handle {
         group_handle(hid_t parent_id, std::string name): id(H5Gopen(parent_id, name.c_str(), H5P_DEFAULT)), name(name){}
         ~group_handle() {
@@ -294,42 +82,21 @@ private:
         std::string name;
     };
 
+    // id of parent group
     hid_t parent_id_;
+
+    // name of group
     std::string name_;
+
+    // Handles group opening/closing
     group_handle group_h_;
-
-public:
-    std::vector<std::shared_ptr<h5_group>> groups_;
-    std::vector<std::shared_ptr<h5_dataset>> datasets_;
-
-    h5_group(hid_t parent, std::string name): parent_id_(parent), name_(name), group_h_(parent_id_, name_) {
-
-        hsize_t nobj;
-        H5Gget_num_objs(group_h_.id, &nobj);
-
-        char memb_name[MAX_NAME];
-
-        groups_.reserve(nobj);
-
-        for (unsigned i = 0; i < nobj; i++) {
-            H5Gget_objname_by_idx(group_h_.id, (hsize_t)i, memb_name, (size_t)MAX_NAME);
-            hid_t otype = H5Gget_objtype_by_idx(group_h_.id, (size_t)i);
-            if (otype == H5G_GROUP) {
-                groups_.emplace_back(std::make_shared<h5_group>(group_h_.id, memb_name));
-            }
-            else if (otype == H5G_DATASET) {
-                datasets_.emplace_back(std::make_shared<h5_dataset>(group_h_.id, memb_name));
-            }
-        }
-    }
-
-    std::string name() {
-        return name_;
-    }
 };
 
+
+/// Class for an hdf5 file, holding a pointer to the top level group in the file
 class h5_file {
 private:
+    // RAII to handle opening/closing files
     struct file_handle {
         file_handle(std::string file): id(H5Fopen(file.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT)), name(file) {}
         ~file_handle() {
@@ -339,263 +106,139 @@ private:
         std::string name;
     };
 
-    std::string file_;
+    // name of file
+    std::string name_;
+
+    // Handles file opening/closing
     file_handle file_h_;
 
 public:
-    void print() {
-        std::cout << top_group_->name() << std::endl;
-        for (auto g0: top_group_->groups_) {
-            std::cout << "\t" << g0->name() << std::endl;
-            for (auto g1: g0->groups_) {
-                std::cout << "\t\t" << g1->name() << std::endl;
-                for (auto g2: g1->groups_) {
-                    std::cout << "\t\t\t" << g2->name() << std::endl;
-                    for (auto g3: g2->groups_) {
-                        std::cout << "\t\t\t\t" << g3->name() << std::endl;
-                        for (auto g4: g3->groups_) {
-                            std::cout << "\t\t\t\t\t" << g4->name() << std::endl;
-                        }
-                        for (auto d4: g3->datasets_) {
-                            std::cout << "\t\t\t\t\t" << d4->name() << " " << d4->size() << std::endl;
-                        }
-                    }
-                    for (auto d3: g2->datasets_) {
-                        std::cout << "\t\t\t\t" << d3->name() << " " << d3->size() << std::endl;
-                    }
-                }
-                for (auto d2: g1->datasets_) {
-                    std::cout << "\t\t\t" << d2->name() << " " << d2->size() << std::endl;
-                }
-            }
-            for (auto d1: g0->datasets_) {
-                std::cout << "\t\t" << d1->name() << " " << d1->size() << std::endl;
-            }
-        }
-        for (auto d0: top_group_->datasets_) {
-            std::cout << "\t" << d0->name() << " " << d0->size() << std::endl;
-        }
-    }
+    // Constructor from file name
+    h5_file(std::string name);
 
+    // Returns file name
+    std::string name();
+
+    // Debugging function
+    void print();
+
+    // Pointer to top level group in file
     std::shared_ptr<h5_group> top_group_;
-    h5_file(std::string name):
-            file_(name),
-            file_h_(name),
-            top_group_(std::make_shared<h5_group>(file_h_.id, "/")) {}
-
-    std::string name() {
-        return file_;
-    }
 };
 
-///////////////////////////////////////////////////////////
-
+/// Class that wraps an h5_group
+/// Provides direct read access to datasets in the group
+/// Provides access to sub-groups of the group
 class h5_wrapper {
 public:
-    h5_wrapper() {}
+    h5_wrapper();
 
-    h5_wrapper(const std::shared_ptr<h5_group>& g): ptr(g) {
-        unsigned i = 0;
-        for (auto d: ptr->datasets_) {
-            dset_map[d->name()] = i++;
-        }
-        i = 0;
-        for (auto g: ptr->groups_) {
-            member_map[g->name()] = i++;
-            members.emplace_back(g);
-        }
-    }
+    h5_wrapper(const std::shared_ptr<h5_group>& g);
 
-    int size() {
-        return members.size();
-    }
+    // Returns number of sub-groups in the wrapped h5_group
+    int size();
 
-    int find_group(std::string name) {
-        if (member_map.find(name) != member_map.end()) {
-            return member_map[name];
-        }
-        return -1;
-    }
+    // Returns index of sub-group with name `name`; returns -1 if sub-group not found
+    int find_group(std::string name) const;
 
-    int find_dataset(std::string name) {
-        if (dset_map.find(name) != dset_map.end()) {
-            return dset_map[name];
-        }
-        return -1;
-    }
+    // Returns index of dataset with name `name`; returns -1 if dataset not found
+    int find_dataset(std::string name) const;
 
-    int dataset_size(std::string name) {
-        if (dset_map.find(name) != dset_map.end()) {
-            return ptr->datasets_[dset_map[name]]->size();
-        }
-        return -1;
-    }
+    // Returns size of dataset with name `name`; returns -1 if dataset not found
+    int dataset_size(std::string name) const;
 
-    int int_at(std::string name, unsigned i) {
-        if (find_dataset(name) != -1) {
-            return ptr->datasets_[dset_map[name]]->int_at(i);
-        }
-        throw sonata_dataset_exception(name);
-    }
+    // Returns int at index i of dataset with name `name`; throws exception if dataset not found
+    int int_at(std::string name, unsigned i) const;
 
-    double double_at(std::string name, unsigned i) {
-        if (find_dataset(name) != -1) {
-            return ptr->datasets_[dset_map[name]]->double_at(i);
-        }
-        throw sonata_dataset_exception(name);
-    }
+    // Returns double at index i of dataset with name `name`; throws exception if dataset not found
+    double double_at(std::string name, unsigned i) const;
 
-    std::string string_at(std::string name, unsigned i) {
-        if (find_dataset(name) != -1) {
-            return std::to_string(ptr->datasets_[dset_map[name]]->string_at(i));
-        }
-        throw sonata_dataset_exception(name);
-    }
+    // Returns string at index i of dataset with name `name`; throws exception if dataset not found
+    std::string string_at(std::string name, unsigned i) const;
 
-    std::vector<int> int_range(std::string name, unsigned i, unsigned j) {
-        if (find_dataset(name)!= -1) {
-            if (j - i > 1) {
-                return ptr->datasets_[dset_map[name]]->int_range(i, j);
-            } else {
-                return {ptr->datasets_[dset_map[name]]->int_at(i)};
-            }
-        }
-        throw sonata_dataset_exception(name);
-    }
+    // Returns integers between indices i and j of dataset with name `name`; throws exception if dataset not found
+    std::vector<int> int_range(std::string name, unsigned i, unsigned j) const;
 
-    std::vector<double> double_range(std::string name, unsigned i, unsigned j) {
-        if (find_dataset(name)!= -1) {
-            return ptr->datasets_[dset_map[name]]->double_range(i, j);
-        }
-        throw sonata_dataset_exception(name);
-    }
+    // Returns double between indices i and j of dataset with name `name`; throws exception if dataset not found
+    std::vector<double> double_range(std::string name, unsigned i, unsigned j) const;
 
-    std::pair<int, int> int_pair_at(std::string name, unsigned i) {
-        if (find_dataset(name)!= -1) {
-            return ptr->datasets_[dset_map[name]]->int_pair_at(i);
-        }
-        throw sonata_dataset_exception(name);
-    }
+    // Returns int pair at index i of dataset with name `name`; throws exception if dataset not found
+    std::pair<int, int> int_pair_at(std::string name, unsigned i) const;
 
-    std::vector<int> int_1d(std::string name) {
-        if (find_dataset(name)!= -1) {
-            return ptr->datasets_[dset_map[name]]->int_1d();
-        }
-        throw sonata_dataset_exception(name);
-    }
+    // Returns full content of 1D dataset with name `name`; throws exception if dataset not found
+    std::vector<int> int_1d(std::string name) const;
 
-    std::vector<std::pair<int, int>> int_2d(std::string name) {
-        if (find_dataset(name)!= -1) {
-            return ptr->datasets_[dset_map[name]]->int_2d();
-        }
-        throw sonata_dataset_exception(name);
-    }
+    // Returns full content of 2D dataset with name `name`; throws exception if dataset not found
+    std::vector<std::pair<int, int>> int_2d(std::string name) const;
 
-    h5_wrapper operator [](unsigned i) const {
-        if (i < members.size() && i >= 0) {
-            return members[i];
-        }
-        throw sonata_exception("h5_wrapper index out of range");
-    }
+    // Returns h5_wrapper of group at index i in members_
+    const h5_wrapper& operator[] (unsigned i) const;
 
-    std::string name() {
-        return ptr->name();
-    }
+    // Returns name of the wrapped h5_group
+    std::string name() const ;
 
 private:
-    std::shared_ptr<h5_group> ptr;
-    std::vector<h5_wrapper> members;
-    std::unordered_map<std::string, unsigned> dset_map;
-    std::unordered_map<std::string, unsigned> member_map;
+    // Pointer to the h5_group wrapped in h5_wrapper
+    std::shared_ptr<h5_group> ptr_;
+
+    // Vector of h5_wrappers around sub_groups of the h5_group
+    std::vector<h5_wrapper> members_;
+
+    // Map from name of dataset to index in vector of datasets in wrapped h5_group
+    std::unordered_map<std::string, unsigned> dset_map_;
+
+    // Map from name of sub-group to index in vector of sub-groups in wrapped h5_group
+    std::unordered_map<std::string, unsigned> member_map_;
 };
 
-
-class hdf5_record {
+/// Class that stores sonata specific information about a collection of hdf5 files
+class h5_record {
 public:
-    hdf5_record(const std::vector<std::shared_ptr<h5_file>>& files) {
-        unsigned idx = 0;
-        partition_.push_back(0);
-        for (auto f: files) {
-            if (f->top_group_->groups_.size() != 1) {
-                throw sonata_exception("file hierarchy wrong\n");
-            }
+    h5_record(const std::vector<std::shared_ptr<h5_file>>& files);
 
-            for (auto g: f->top_group_->groups_.front()->groups_) {
-                pop_names_.emplace_back(g->name());
-                map_[g->name()] = idx++;
-                populations_.emplace_back(g);
-            }
+    // Verifies that the hdf5 files contain sonata edge information
+    bool verify_edges();
 
-            for (auto &p: f->top_group_->groups_.front()->groups_) {
-                for (auto &d: p->datasets_) {
-                    if (d->name().find("type_id") != std::string::npos) {
-                        num_elements_ += d->size();
-                        partition_.push_back(num_elements_);
-                    }
-                }
-            }
-        }
-    }
+    // Verifies that the hdf5 files contain sonata node information
+    bool verify_nodes();
 
-    void verify_edges() {
-        for (auto& p: populations()) {
-            if (p.find_group("indicies") == -1) {
-                throw sonata_exception("indicies group must be available in all edge population groups ");
-            }
-            if (p.find_dataset("edge_type_id") == -1) {
-                throw sonata_exception("edge_type_id dataset not provided in edge populations");
-            }
-            if (p.find_dataset("edge_id") != -1) {
-                throw sonata_exception("edge_id datasets not supported; "
-                                            "ids are automatically assigned contiguously starting from 0");
-            }
-        }
-    }
+    // Returns total number of nodes/edges
+    int num_elements() const;
 
-    void verify_nodes() {
-        for (auto& p: populations()) {
-            if (p.find_dataset("node_type_id") == -1) {
-                throw sonata_exception("node_type_id dataset not provided in node populations");
-            }
-            if (p.find_dataset("node_id") != -1) {
-                throw sonata_exception("node_id datasets not supported; "
-                                            "ids are automatically assigned contiguously starting from 0");
-            }
-        }
-    }
+    // Returns the population with name `name` in populations_
+    const h5_wrapper& operator [](std::string name) const;
 
-    int num_elements() const {
-        return num_elements_;
-    }
+    // Returns the population at index `i` in populations_
+    const h5_wrapper& operator [](int i) const;
 
-    h5_wrapper operator [](std::string i) const {
-        return populations_[map_.at(i)];
-    }
+    // Returns all populations
+    std::vector<h5_wrapper> populations() const;
 
-    h5_wrapper operator [](int i) const {
-        return populations_[i];
-    }
+    // Returns partitioned sizes of every population in the h5_record
+    std::vector<unsigned> partitions() const;
 
-    std::vector<h5_wrapper> populations() const {
-        return populations_;
-    }
+    // Returns map_
+    std::unordered_map<std::string, unsigned> map() const;
 
-    std::vector<unsigned> partitions() const {
-        return partition_;
-    }
-
-    std::unordered_map<std::string, unsigned> map() const {
-        return map_;
-    }
-
-    std::vector<std::string> pop_names() const {
-        return pop_names_;
-    }
+    // Returns names of all populations_
+    std::vector<std::string> pop_names() const;
 
 private:
+    // Total number of nodes/ edges
     int num_elements_ = 0;
+
+    // Keep the original hdf5 files, to guarantee they remain open for the lifetime of a record
+    std::vector<std::shared_ptr<h5_file>> files_;
+
+    // Population names
     std::vector<std::string> pop_names_;
+
+    // Partitioned sizes of the populations
     std::vector<unsigned> partition_;
+
+    // Wrapped h5_group representing the top levels of every population
     std::vector<h5_wrapper> populations_;
+
+    // Map from population name to index in populations_
     std::unordered_map<std::string, unsigned> map_;
 };

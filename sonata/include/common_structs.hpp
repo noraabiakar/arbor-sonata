@@ -4,6 +4,8 @@
 #include <arbor/cable_cell.hpp>
 #include <arbor/simple_sampler.hpp>
 
+#include "hdf5_lib.hpp"
+
 #include <string>
 
 using arb::cell_gid_type;
