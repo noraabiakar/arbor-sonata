@@ -151,10 +151,23 @@ std::unordered_map<std::string, variable_map> csv_node_record::dynamic_params(ty
     return ret;
 }
 
-std::unordered_map<std::string, std::vector<arb::mechanism_desc>> csv_node_record::density_mech_desc(type_pop_id id) {
+std::unordered_map<std::string, std::vector<arb::mechanism_desc>> csv_node_record::density_mech_desc(
+        type_pop_id id, std::unordered_map<std::string, variable_map> override) {
     std::unordered_map<std::string, std::vector<arb::mechanism_desc>> ret;
 
     std::unordered_map<std::string, mech_groups> density_mechs = density_params_[id];
+
+    for (auto seg_overrides: override) {
+        if (density_mechs.find(seg_overrides.first) != density_mechs.end()) {
+            auto& base_id = density_mechs.at(seg_overrides.first);
+            auto& base_vars = base_id.variables;
+            for (auto var: seg_overrides.second) {
+                if (base_vars.find(var.first) != base_vars.end()) {
+                    base_vars[var.first] = var.second;
+                }
+            }
+        }
+    }
 
     // For every mech_id
     for (auto mech: density_mechs) {
@@ -186,7 +199,6 @@ void csv_node_record::override_density_params(type_pop_id id, std::unordered_map
         }
     }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -153,7 +153,7 @@ void database::build_source_and_target_maps(const std::vector<arb::group_descrip
     }
 }
 
-void database::read_spike_times(std::vector<spike_info> spikes) {
+void database::build_spike_map(std::vector<spike_info> spikes) {
     for (unsigned gid = 0; gid < num_cells(); gid++) {
         std::vector<double> spike_times;
 
@@ -180,7 +180,7 @@ void database::read_spike_times(std::vector<spike_info> spikes) {
     }
 }
 
-void database::read_current_clamps(std::vector<current_clamp_info> current) {
+void database::build_current_clamp_map(std::vector<current_clamp_info> current) {
 
     struct param_info {
         double dur;
@@ -442,8 +442,8 @@ std::unordered_map<std::string, std::vector<arb::mechanism_desc>> database::get_
             }
         }
     }
-    node_types_.override_density_params(node_unique_id, std::move(density_vars));
-    return node_types_.density_mech_desc(node_unique_id);
+
+    return node_types_.density_mech_desc(node_unique_id, std::move(density_vars));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

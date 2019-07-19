@@ -28,8 +28,8 @@ public:
              std::vector<spike_info> spikes,
              std::vector<current_clamp_info> current_clamp):
     nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types) {
-        read_spike_times(spikes);
-        read_current_clamps(current_clamp);
+        build_spike_map(spikes);
+        build_current_clamp_map(current_clamp);
     }
 
     /// Simple queries
@@ -59,9 +59,9 @@ public:
     // weight/delay of the connection and point mechanism with all parameters set
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
 
-    void read_current_clamps(std::vector<current_clamp_info> current);
+    void build_current_clamp_map(std::vector<current_clamp_info> current);
 
-    void read_spike_times(std::vector<spike_info> spikes);
+    void build_spike_map(std::vector<spike_info> spikes);
 
     /// Read maps
 
