@@ -28,30 +28,17 @@ public:
     // returns number of elements in a dataset
     int size();
 
-    // Read integer at index `i`; throws exception if out of bounds
-    auto int_at(const int i);
+    // Read all dataset
+    template <typename T>
+    auto get();
 
-    // Read double at index `i`; throws exception if out of bounds
-    auto double_at(const int i);
+    // Read at index `i`; throws exception if out of bounds
+    template <typename T>
+    auto get(const int i);
 
-    // Read string at index `i`; throws exception if out of bounds
-    auto string_at(const int i);
-
-    // Read range of integers between indices `i` and `j`; throws exception if out of bounds
-    auto int_range(const int i, const int j);
-
-    // Read range of doubles between indices `i` and `j`; throws exception if out of bounds
-    auto double_range(const int i, const int j);
-
-    // Read integer pair at index `i` (dataset has dimensions size() x 2)
-    // Throws exception if out of bounds
-    auto int_pair_at(const int i);
-
-    // Read all 1D integer dataset
-    auto int_1d();
-
-    // Read all 2D integer dataset
-    auto int_2d();
+    // Read range  between indices `i` and `j`; throws exception if out of bounds
+    template <typename T>
+    auto get(const int i, const int j);
 
 private:
     // id of parent group
@@ -177,29 +164,17 @@ public:
     // Returns size of dataset with name `name`; returns -1 if dataset not found
     int dataset_size(std::string name) const;
 
-    // Returns int at index i of dataset with name `name`; throws exception if dataset not found
-    int int_at(std::string name, unsigned i) const;
+    // Returns value at index i of dataset with name `name`; throws exception if dataset not found
+    template <typename T>
+    T get(std::string name, unsigned i) const;
 
-    // Returns double at index i of dataset with name `name`; throws exception if dataset not found
-    double double_at(std::string name, unsigned i) const;
-
-    // Returns string at index i of dataset with name `name`; throws exception if dataset not found
-    std::string string_at(std::string name, unsigned i) const;
-
-    // Returns integers between indices i and j of dataset with name `name`; throws exception if dataset not found
-    std::vector<int> int_range(std::string name, unsigned i, unsigned j) const;
-
-    // Returns double between indices i and j of dataset with name `name`; throws exception if dataset not found
-    std::vector<double> double_range(std::string name, unsigned i, unsigned j) const;
-
-    // Returns int pair at index i of dataset with name `name`; throws exception if dataset not found
-    std::pair<int, int> int_pair_at(std::string name, unsigned i) const;
+    // Returns values between indices i and j of dataset with name `name`; throws exception if dataset not found
+    template <typename T>
+    T get(std::string name, unsigned i, unsigned j) const;
 
     // Returns full content of 1D dataset with name `name`; throws exception if dataset not found
-    std::vector<int> int_1d(std::string name) const;
-
-    // Returns full content of 2D dataset with name `name`; throws exception if dataset not found
-    std::vector<std::pair<int, int>> int_2d(std::string name) const;
+    template <typename T>
+    T get(std::string name) const;
 
     // Returns h5_wrapper of group at index i in members_
     const h5_wrapper& operator[] (unsigned i) const;
