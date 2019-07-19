@@ -26,11 +26,7 @@ public:
              csv_node_record node_types,
              csv_edge_record edge_types,
              std::vector<spike_info> spikes,
-             std::vector<current_clamp_info> current_clamp):
-    nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types) {
-        build_spike_map(spikes);
-        build_current_clamp_map(current_clamp);
-    }
+             std::vector<current_clamp_info> current_clamp);
 
     /// Simple queries
 

@@ -10,6 +10,18 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
+database::database(h5_record nodes,
+                   h5_record edges,
+                   csv_node_record node_types,
+                   csv_edge_record edge_types,
+                   std::vector<spike_info> spikes,
+                   std::vector<current_clamp_info> current_clamp):
+nodes_(nodes), edges_(edges), node_types_(node_types), edge_types_(edge_types) {
+    build_spike_map(spikes);
+    build_current_clamp_map(current_clamp);
+}
+
+
 cell_size_type database::num_cells() const {
     return nodes_.num_elements();
 }
