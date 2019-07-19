@@ -108,37 +108,50 @@ auto h5_dataset::double_at(const int i) {
 
 auto h5_dataset::string_at(const int i) {
     const hsize_t idx = (hsize_t)i;
-
-    // Output
-    char *out = new char[1];
-
-    // Output dimensions 1x1
     hsize_t dims = 1;
     hsize_t dim_sizes[] = {1};
+    size_t  sdim;
 
-    // Output size
-    hsize_t num_elements = 1;
+    char *out;
 
-    auto id_ = H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
-    hid_t dspace = H5Dget_space(id_);
+    auto dset =  H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    auto filetype = H5Dget_type(dset);
 
-    H5Sselect_elements(dspace, H5S_SELECT_SET, num_elements, &idx);
+    // Initialize sdim with size of string + null terminator
+    sdim = H5Tget_size(filetype) + 1;
+
+    // Initialize output buffer
+    out = (char *) malloc (sdim * sizeof (char));
+
+    H5Dclose(dset);
+    H5Tclose(filetype);
+
+    // Open dataset and dataspace
+    dset =  H5Dopen(parent_id_, name_.c_str(), H5P_DEFAULT);
+    auto dspace = H5Dget_space(dset);
+
+    // Select element to read
+    H5Sselect_elements(dspace, H5S_SELECT_SET, 1, &idx);
     hid_t out_mem = H5Screate_simple(dims, dim_sizes, NULL);
 
-    auto status = H5Dread(id_, H5T_NATIVE_CHAR, out_mem, dspace, H5P_DEFAULT, out);
+    // Select right datatype
+    auto memtype = H5Tcopy(H5T_C_S1);
+    H5Tset_size (memtype, sdim);
 
-    H5Sclose(dspace);
-    H5Sclose(out_mem);
-    H5Dclose(id_);
+    auto status = H5Dread(dset, memtype, out_mem, dspace, H5P_DEFAULT, out);
 
     if (status < 0) {
         throw sonata_dataset_exception(name_, (unsigned)i);
     }
 
-    int r = out[0];
-    delete [] out;
+    std::string ret(out);
 
-    return r;
+    free (out);
+    H5Dclose(dset);
+    H5Sclose(dspace);
+    H5Tclose(memtype);
+
+    return ret;
 }
 
 auto h5_dataset::int_range(const int i, const int j) {
@@ -408,7 +421,7 @@ double h5_wrapper::double_at(std::string name, unsigned i) const {
 
 std::string h5_wrapper::string_at(std::string name, unsigned i) const {
     if (find_dataset(name) != -1) {
-        return std::to_string(ptr_->datasets_.at(dset_map_.at(name))->string_at(i));
+        return ptr_->datasets_.at(dset_map_.at(name))->string_at(i);
     }
     throw sonata_dataset_exception(name);
 }
