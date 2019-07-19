@@ -9,10 +9,6 @@
 #include "include/density_mech_helper.hpp"
 #include "include/csv_lib.hpp"
 
-arb::mechanism_desc read_dynamics_params_point(std::string fname);
-std::unordered_map<std::string, mech_groups> read_dynamics_params_density_base(std::string fname);
-std::unordered_map<std::string, variable_map> read_dynamics_params_density_override(std::string fname);
-
 csv_file::csv_file(std::string name, char delm) :
         filename(name), delimeter(delm) {
     std::ifstream file(name);
@@ -151,9 +147,9 @@ std::unordered_map<std::string, variable_map> csv_node_record::dynamic_params(ty
     return ret;
 }
 
-std::unordered_map<std::string, std::vector<arb::mechanism_desc>> csv_node_record::density_mech_desc(
+std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> csv_node_record::density_mech_desc(
         type_pop_id id, std::unordered_map<std::string, variable_map> overrides) {
-    std::unordered_map<std::string, std::vector<arb::mechanism_desc>> ret;
+    std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> ret;
 
     std::unordered_map<std::string, mech_groups> density_mechs = density_params_[id];
 

@@ -260,11 +260,11 @@ TEST(model_desc, density_mechs) {
     for (unsigned i = 0; i < 5; i++) {
         auto mechs_per_sec = md.get_density_mechs(i);
         EXPECT_EQ(2, mechs_per_sec.size());
-        EXPECT_TRUE(mechs_per_sec.find("soma") != mechs_per_sec.end());
-        EXPECT_TRUE(mechs_per_sec.find("dend") != mechs_per_sec.end());
+        EXPECT_TRUE(mechs_per_sec.find(arb::section_kind::soma) != mechs_per_sec.end());
+        EXPECT_TRUE(mechs_per_sec.find(arb::section_kind::dendrite) != mechs_per_sec.end());
 
-        auto mech_soma = mechs_per_sec.at("soma");
-        auto mech_dend = mechs_per_sec.at("dend");
+        auto mech_soma = mechs_per_sec.at(arb::section_kind::soma);
+        auto mech_dend = mechs_per_sec.at(arb::section_kind::dendrite);
 
         EXPECT_EQ(2, mech_soma.size());
         EXPECT_EQ(1, mech_dend.size());

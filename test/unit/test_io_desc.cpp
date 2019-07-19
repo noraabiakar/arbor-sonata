@@ -7,6 +7,18 @@
 
 #include "../gtest.h"
 
+// pop_ext         n5
+//           ______|_______
+//          |       _______|________
+//          |      |       |        |
+//          v      |       v        v
+//  pop_e:  n0     n1      n2       n3
+//          |      ^       |
+//          |      |       |
+//          |      |       |
+//  pop_i:  |____> n4 <____|
+
+
 io_desc simple_input() {
     std::string datadir{DATADIR};
 
@@ -36,7 +48,13 @@ io_desc simple_input() {
 
     std::vector<current_clamp_info> clamp_vec = {{clamp_elec, clamp_in}};
 
-    io_desc in(nodes, spike_vec, clamp_vec, {});
+    std::vector<probe_info> probe_vec;
+    probe_vec.emplace_back("v", "pop_e", std::vector<unsigned>{0,2}, 0, 0.5, "file0");
+    probe_vec.emplace_back("v", "pop_ext", std::vector<unsigned>{0}, 1, 0.2, "file0");
+    probe_vec.emplace_back("i", "pop_e",std::vector<unsigned> {0,3}, 1, 0.1, "file1");
+    probe_vec.emplace_back("i", "pop_i",   std::vector<unsigned>{0}, 0, 0.3, "file1");
+
+    io_desc in(nodes, spike_vec, clamp_vec, probe_vec);
 
     return std::move(in);
 }
@@ -77,4 +95,70 @@ TEST(io_desc, clamps) {
     EXPECT_EQ(0, clamps.front().delay);
     EXPECT_EQ(0.4, clamps.front().amplitude);
     EXPECT_EQ(5, clamps.front().duration);
+}
+
+
+TEST(io_desc, probes) {
+    auto in = simple_input();
+
+    EXPECT_EQ(2, in.get_num_probes(0));
+    EXPECT_EQ(0, in.get_num_probes(1));
+    EXPECT_EQ(1, in.get_num_probes(2));
+    EXPECT_EQ(1, in.get_num_probes(3));
+    EXPECT_EQ(1, in.get_num_probes(4));
+    EXPECT_EQ(1, in.get_num_probes(5));
+
+    auto probe_gps = in.get_probe_groups();
+    EXPECT_EQ(2, probe_gps.size());
+    EXPECT_TRUE(probe_gps.find("file0") != probe_gps.end());
+    EXPECT_TRUE(probe_gps.find("file1") != probe_gps.end());
+
+    EXPECT_EQ(3, probe_gps.at("file0").size());
+    EXPECT_EQ(3, probe_gps.at("file1").size());
+
+    EXPECT_EQ(cell_member_type({0, 0}), probe_gps.at("file0")[0]);
+    EXPECT_EQ(cell_member_type({2, 0}), probe_gps.at("file0")[1]);
+    EXPECT_EQ(cell_member_type({5, 0}), probe_gps.at("file0")[2]);
+
+    EXPECT_EQ(cell_member_type({0, 1}), probe_gps.at("file1")[0]);
+    EXPECT_EQ(cell_member_type({3, 0}), probe_gps.at("file1")[1]);
+    EXPECT_EQ(cell_member_type({4, 0}), probe_gps.at("file1")[2]);
+
+    EXPECT_THROW(in.get_probe({0,2}), sonata_exception);
+
+    auto p = in.get_probe({0,0});
+    auto add = arb::util::any_cast<arb::cell_probe_address>(p.address);
+    EXPECT_EQ(cell_member_type({0,0}), p.id);
+    EXPECT_EQ(arb::cell_probe_address::membrane_voltage, add.kind);
+    EXPECT_EQ(arb::segment_location({0,0.5}), add.location);
+
+    p = in.get_probe({2,0});
+    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
+    EXPECT_EQ(cell_member_type({2,0}), p.id);
+    EXPECT_EQ(arb::cell_probe_address::membrane_voltage, add.kind);
+    EXPECT_EQ(arb::segment_location({0,0.5}), add.location);
+
+    p = in.get_probe({5,0});
+    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
+    EXPECT_EQ(cell_member_type({5,0}), p.id);
+    EXPECT_EQ(arb::cell_probe_address::membrane_voltage, add.kind);
+    EXPECT_EQ(arb::segment_location({1,0.2}), add.location);
+
+    p = in.get_probe({0,1});
+    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
+    EXPECT_EQ(cell_member_type({0,1}), p.id);
+    EXPECT_EQ(arb::cell_probe_address::membrane_current, add.kind);
+    EXPECT_EQ(arb::segment_location({1,0.1}), add.location);
+
+    p = in.get_probe({3,0});
+    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
+    EXPECT_EQ(cell_member_type({3,0}), p.id);
+    EXPECT_EQ(arb::cell_probe_address::membrane_current, add.kind);
+    EXPECT_EQ(arb::segment_location({1,0.1}), add.location);
+
+    p = in.get_probe({4,0});
+    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
+    EXPECT_EQ(cell_member_type({4,0}), p.id);
+    EXPECT_EQ(arb::cell_probe_address::membrane_current, add.kind);
+    EXPECT_EQ(arb::segment_location({0,0.3}), add.location);
 }

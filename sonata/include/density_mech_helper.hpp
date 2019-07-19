@@ -4,18 +4,43 @@
 #include <unordered_map>
 #include <vector>
 
+#include <arbor/morphology.hpp>
+
 using variable_map = std::unordered_map<std::string, double>;
 
+// mech_param is a descrtiption of a mechanism `mech` and related attributes:
+// `section` is the name of the sections where `mech` is located (eg. soma, dend etc);
+// some of the parameters of `mech` aren't set yet because they aren't assigned a numerical value
+// instead, the parameters are assigned aliases, which they should get their numerical values from
+// these alieases are stored in `param_alias`
 struct mech_params {
-    std::string section;
-    std::unordered_map<std::string, std::string> param_alias;
+    arb::section_kind section;
+    std::unordered_map<std::string, std::string> param_alias;     // Map from mechansim parameter to alias
     arb::mechanism_desc mech;
 
     mech_params(std::string sec, std::unordered_map<std::string, std::string> map, arb::mechanism_desc full_mech) :
-            section(sec), param_alias(std::move(map)), mech(full_mech) {}
+            param_alias(std::move(map)), mech(full_mech) {
+        if (sec == "soma") {
+            section = arb::section_kind::soma;
+        } else if (sec == "dend") {
+            section = arb::section_kind::dendrite;
+        } else if (sec == "axon") {
+            section = arb::section_kind::axon;
+        } else {
+            section = arb::section_kind::none;
+        }
+    }
 
     void print() {
-        std::cout << section << std::endl;
+        if (section == arb::section_kind::soma) {
+            std::cout << "soma" << std::endl;
+        } else if (section == arb::section_kind::dendrite) {
+            std::cout << "dend" << std::endl;
+        } else if (section == arb::section_kind::axon) {
+            std::cout << "axon" << std::endl;
+        } else {
+            std::cout << "none" << std::endl;
+        }
         std::cout << mech.name() << std::endl;
         for (auto p: mech.values()) {
             std::cout << p.first << " = " << p.second << std::endl;
@@ -26,6 +51,9 @@ struct mech_params {
     }
 };
 
+// A mech_group is a group of mechanisms that share `variables` that they can access.
+// A mech_group has a list of mechanism descriptions `mech_params` that have mechanisms with
+// parameters that can potenitally get their values from the `variables` map
 struct mech_groups {
     variable_map variables; // variables that can be overwritten
     std::vector<mech_params> mech_details;
