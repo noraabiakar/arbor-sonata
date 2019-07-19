@@ -39,38 +39,12 @@ struct network_params {
             : nodes(other.nodes), nodes_types(other.nodes_types), edges(other.edges), edges_types(other.edges_types) {}
 };
 
-struct sim_conditions {
-    double temp_c;
-    double v_init;
-};
-
-struct run_params {
-    double duration;
-    double dt;
-    double threshold;
-};
-
-struct spike_out_info {
-    std::string file_name;
-    std::string sort_by;
-};
-
-struct probe_info {
-    std::string kind;
-    std::string population;
-    std::vector<unsigned> node_ids;
-    unsigned sec_id;
-    double sec_pos;
-
-    std::string file_name;
-};
-
 struct sonata_params {
     network_params network;
     sim_conditions conditions;
     run_params run;
     std::vector<current_clamp_info> current_clamps;
-    std::vector<spike_info> spikes_input;
+    std::vector<spike_in_info> spikes_input;
     spike_out_info spike_output;
     std::vector<probe_info> probes_info;
 
@@ -78,7 +52,7 @@ struct sonata_params {
                   sim_conditions&& s,
                   run_params&& r,
                   std::vector<current_clamp_info>&& clamps,
-                  std::vector<spike_info>&& spikes,
+                  std::vector<spike_in_info>&& spikes,
                   spike_out_info&& output,
                   std::vector<probe_info>&& probes):
     network(std::move(n)),
@@ -177,9 +151,9 @@ std::vector<current_clamp_info> read_clamps(std::unordered_map<std::string, nloh
     return ret;
 }
 
-std::vector<spike_info> read_spikes(std::unordered_map<std::string, nlohmann::json>& spike_json, const nlohmann::json& node_set_json) {
+std::vector<spike_in_info> read_spikes(std::unordered_map<std::string, nlohmann::json>& spike_json, const nlohmann::json& node_set_json) {
     using sup::param_from_json;
-    std::vector<spike_info> ret;
+    std::vector<spike_in_info> ret;
 
     for (auto input: spike_json) {
         if (input.second["input_type"] == "spikes") {

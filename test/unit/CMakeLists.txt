@@ -2,9 +2,11 @@
 set(unit_sources
     test_csv.cpp
     test_hdf5.cpp
-    test_databse.cpp
+    test_model_desc.cpp
+    test_io_desc.cpp
 
-    # unit test driver
+
+        # unit test driver
     test.cpp
 )
 

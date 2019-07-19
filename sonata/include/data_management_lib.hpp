@@ -7,6 +7,7 @@
 
 #include <string>
 #include <unordered_set>
+#include <set>
 
 #include "hdf5_lib.hpp"
 #include "csv_lib.hpp"
@@ -19,20 +20,16 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::segment_location;
 
-class database {
+class model_desc {
 public:
-    database(h5_record nodes,
-             h5_record edges,
-             csv_node_record node_types,
-             csv_edge_record edge_types,
-             std::vector<spike_info> spikes,
-             std::vector<current_clamp_info> current_clamp);
+    model_desc(h5_record nodes,
+               h5_record edges,
+               csv_node_record node_types,
+               csv_edge_record edge_types);
 
     /// Simple queries
 
     cell_size_type num_cells() const;
-
-    cell_size_type num_edges() const;
 
     cell_size_type num_sources(cell_gid_type gid) const;
 
@@ -55,15 +52,7 @@ public:
     // weight/delay of the connection and point mechanism with all parameters set
     void build_source_and_target_maps(const std::vector<arb::group_description>&);
 
-    void build_current_clamp_map(std::vector<current_clamp_info> current);
-
-    void build_spike_map(std::vector<spike_info> spikes);
-
     /// Read maps
-
-    std::vector<current_clamp> get_current_clamps(cell_gid_type gid) const;
-
-    std::vector<double> get_spikes(cell_gid_type gid) const;
 
     void get_sources_and_targets(cell_gid_type gid, std::vector<segment_location>& src,
                                  std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) const;
@@ -96,16 +85,60 @@ private:
     csv_node_record node_types_;
     csv_edge_record edge_types_;
 
-    // Map from gid to vector of current_clamp descriptors
-    std::unordered_map<cell_gid_type, std::vector<current_clamp>> current_clamp_map_;
-
-    // Map from gid to vector of time stamps of input spikes
-    std::unordered_map<cell_gid_type, std::vector<double>> spike_map_;
-
     // Map from gid to vector of source_type on the cell
     std::unordered_map<cell_gid_type, std::vector<source_type>> source_maps_;
 
     // Map from gid to vector of target_type, gid on the cell
     std::unordered_map<cell_gid_type, std::vector<std::pair<target_type, unsigned>>> target_maps_;
+};
+
+class io_desc {
+public:
+    io_desc(h5_record nodes,
+               std::vector<spike_in_info> spikes,
+               std::vector<current_clamp_info> current_clamp,
+               std::vector<probe_info> probes);
+
+    /// Fill member maps
+
+    // Queries hdf5/csv records as needed to build (with correct overrides)all needed
+    // information to form a cell_connection.
+
+    void build_current_clamp_map(std::vector<current_clamp_info> current);
+
+    void build_spike_map(std::vector<spike_in_info> spikes);
+
+    void build_probe_map(std::vector<probe_info> probes);
+
+    /// Read maps
+
+    std::vector<current_clamp_desc> get_current_clamps(cell_gid_type gid) const;
+
+    std::vector<double> get_spikes(cell_gid_type gid) const;
+
+    cell_size_type get_num_probes(cell_gid_type gid) const;
+
+    arb::probe_info get_probe(cell_member_type id) const;
+
+    std::unordered_map<std::string, std::vector<cell_member_type>> get_probe_groups() const;
+
+private:
+    h5_record nodes_;
+
+    // Map from gid to vector of current_clamp descriptors
+    std::unordered_map<cell_gid_type, std::vector<current_clamp_desc>> current_clamp_map_;
+
+    // Map from gid to vector of time stamps of input spikes
+    std::unordered_map<cell_gid_type, std::vector<double>> spike_map_;
+
+    // Map from cell_member_type to vector of time stamps of input spikes
+    std::unordered_map<cell_member_type, arb::probe_info> probe_map_;
+
+    // Map from file name to vector of probes (cell_member_types) to be recorded in the file
+    std::unordered_map<std::string, std::vector<cell_member_type>> probe_groups_;
+
+    // Map from gid to number of probes on cell
+    std::unordered_map<cell_gid_type, cell_size_type > probe_count_;
+
 };
 
