@@ -13,10 +13,9 @@
 //           |     ^       |
 //           |     |       |
 //           |     |       |
-//  pop_i:   |___> n5 <____|
+//  pop_i:   |___> n4 <____|
 
-
-TEST(database, helper_functions) {
+database simple_network() {
     std::string datadir{DATADIR};
 
     auto nodes0 = datadir + "/nodes_0.h5";
@@ -48,6 +47,14 @@ TEST(database, helper_functions) {
 
     database db(nodes, edges, n_base, e_base, {}, {});
 
+    return std::move(db);
+}
+
+
+TEST(database, helper_functions) {
+
+    auto db = simple_network();
+
     EXPECT_EQ(5, db.num_cells());
 
     EXPECT_EQ(std::vector<unsigned>({0,4,5}), db.pop_partitions());
@@ -59,11 +66,133 @@ TEST(database, helper_functions) {
     EXPECT_EQ("pop_e", db.population_of(3));
     EXPECT_EQ("pop_i", db.population_of(4));
 
-//    auto l_cell = db.localize_cell(0);
-//    EXPECT_EQ(0, l_cell.pop_id);
-//    EXPECT_EQ(0, l_cell.el_id);
-//
-//    l_cell = db.localize_cell(4);
-//    EXPECT_EQ(1, l_cell.pop_id);
-//    EXPECT_EQ(0, l_cell.el_id);
+    EXPECT_EQ(0, db.population_id_of(0));
+    EXPECT_EQ(1, db.population_id_of(1));
+    EXPECT_EQ(2, db.population_id_of(2));
+    EXPECT_EQ(3, db.population_id_of(3));
+    EXPECT_EQ(0, db.population_id_of(4));
+}
+
+TEST(database, source_target_maps) {
+    auto db = simple_network();
+
+    auto verify_src_tgt = [&db](const std::vector<arb::group_description>& decomp) {
+        db.build_source_and_target_maps(decomp);
+
+        std::vector<segment_location> srcs;
+        std::vector<std::pair<segment_location, arb::mechanism_desc>> tgts;
+        db.get_sources_and_targets(0, srcs, tgts);
+
+        EXPECT_EQ(1, srcs.size());
+        EXPECT_EQ(1, srcs[0].segment);
+        EXPECT_NEAR(0.3, srcs[0].position, 1e-5);
+
+        EXPECT_EQ(0, tgts.size());
+
+        srcs.clear();
+        tgts.clear();
+        db.get_sources_and_targets(1, srcs, tgts);
+
+        EXPECT_EQ(1, srcs.size());
+        EXPECT_EQ(1, srcs[0].segment);
+        EXPECT_NEAR(0.2, srcs[0].position, 1e-5);
+
+        EXPECT_EQ(1, tgts.size());
+        EXPECT_EQ(0, tgts[0].first.segment);
+        EXPECT_NEAR(0.5, tgts[0].first.position, 1e-5);
+        EXPECT_EQ("expsyn", tgts[0].second.name());
+
+        srcs.clear();
+        tgts.clear();
+        db.get_sources_and_targets(2, srcs, tgts);
+
+        EXPECT_EQ(1, srcs.size());
+        EXPECT_EQ(3, srcs[0].segment);
+        EXPECT_NEAR(0.2, srcs[0].position, 1e-5);
+
+        EXPECT_EQ(0, tgts.size());
+
+        srcs.clear();
+        tgts.clear();
+        db.get_sources_and_targets(3, srcs, tgts);
+
+        EXPECT_EQ(0, srcs.size());
+
+        EXPECT_EQ(1, tgts.size());
+        EXPECT_EQ(5, tgts[0].first.segment);
+        EXPECT_NEAR(0.6, tgts[0].first.position, 1e-5);
+        EXPECT_EQ("expsyn", tgts[0].second.name());
+
+        srcs.clear();
+        tgts.clear();
+        db.get_sources_and_targets(4, srcs, tgts);
+
+        EXPECT_EQ(1, srcs.size());
+        EXPECT_EQ(0, srcs[0].segment);
+        EXPECT_NEAR(0.9, srcs[0].position, 1e-5);
+
+        EXPECT_EQ(2, tgts.size());
+        EXPECT_EQ(0, tgts[0].first.segment);
+        EXPECT_NEAR(0.4, tgts[0].first.position, 1e-5);
+        EXPECT_EQ("exp2syn", tgts[0].second.name());
+        EXPECT_EQ(2, tgts[1].first.segment);
+        EXPECT_NEAR(0.1, tgts[1].first.position, 1e-5);
+        EXPECT_EQ("exp2syn", tgts[1].second.name());
+    };
+
+    auto decomp = arb::group_description(arb::cell_kind::cable, {0,1,2,3,4}, arb::backend_kind::multicore);
+    verify_src_tgt({decomp});
+}
+
+TEST(database, connections) {
+    auto db = simple_network();
+
+    auto decomp = arb::group_description(arb::cell_kind::cable, {0,1,2,3,4}, arb::backend_kind::multicore);
+    db.build_source_and_target_maps({decomp});
+
+    std::vector<arb::cell_connection> conns;
+    db.get_connections(0, conns);
+    EXPECT_EQ(0, conns.size());
+
+    conns.clear();
+    db.get_connections(1, conns);
+    EXPECT_EQ(1, conns.size());
+    EXPECT_EQ(4,conns[0].source.gid);
+    EXPECT_EQ(0,conns[0].source.index);
+    EXPECT_EQ(1,conns[0].dest.gid);
+    EXPECT_EQ(0,conns[0].dest.index);
+    EXPECT_NEAR(-0.02,conns[0].weight,1e-5);
+    EXPECT_NEAR(0.1,conns[0].delay,1e-5);
+
+    conns.clear();
+    db.get_connections(2, conns);
+    EXPECT_EQ(0, conns.size());
+
+    conns.clear();
+    db.get_connections(3, conns);
+    EXPECT_EQ(1, conns.size());
+    EXPECT_EQ(1,conns[0].source.gid);
+    EXPECT_EQ(0,conns[0].source.index);
+    EXPECT_EQ(3,conns[0].dest.gid);
+    EXPECT_EQ(0,conns[0].dest.index);
+    EXPECT_NEAR(0.05,conns[0].weight,1e-5);
+    EXPECT_NEAR(0.2,conns[0].delay,1e-5);
+
+    conns.clear();
+    db.get_connections(4, conns);
+    EXPECT_EQ(2, conns.size());
+    EXPECT_EQ(0,conns[0].source.gid);
+    EXPECT_EQ(0,conns[0].source.index);
+    EXPECT_EQ(4,conns[0].dest.gid);
+    EXPECT_EQ(0,conns[0].dest.index);
+    EXPECT_NEAR(0.04,conns[0].weight,1e-5);
+    EXPECT_NEAR(0.3,conns[0].delay,1e-5);
+
+    EXPECT_EQ(2,conns[1].source.gid);
+    EXPECT_EQ(0,conns[1].source.index);
+    EXPECT_EQ(4,conns[1].dest.gid);
+    EXPECT_EQ(1,conns[1].dest.index);
+    EXPECT_NEAR(0.04,conns[1].weight,1e-5);
+    EXPECT_NEAR(0.3,conns[1].delay,1e-5);
+
 }

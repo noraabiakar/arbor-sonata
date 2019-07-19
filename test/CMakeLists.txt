@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.9)
+
 find_package(Threads REQUIRED)
 find_package(arbor REQUIRED)
 

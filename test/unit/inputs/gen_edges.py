@@ -19,11 +19,11 @@ ntgts = 1
 
 edge_group_id = pop_e_i.create_dataset("edge_group_id", (nedges,), dtype="i")
 edge_group_id[0] = 0
-edge_group_id[1] = 0
+edge_group_id[1] = 1
 
 edge_group_index = pop_e_i.create_dataset("edge_group_index", (nedges,), dtype="i")
 edge_group_index[0] = 0
-edge_group_index[1] = 1
+edge_group_index[1] = 0
 
 edge_type_id = pop_e_i.create_dataset("edge_type_id", (nedges,), dtype="i")
 edge_type_id[0] = 103
