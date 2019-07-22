@@ -4,6 +4,7 @@ ENABLE_LANGUAGE(C)
 
 cmake_policy(SET CMP0074 NEW)
 set (CMAKE_CXX_STANDARD 14)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(MPI REQUIRED CXX)
 find_package(arbor REQUIRED)
@@ -11,4 +12,3 @@ find_package(HDF5 REQUIRED)
 
 add_subdirectory(test)
 add_subdirectory(example)
-
