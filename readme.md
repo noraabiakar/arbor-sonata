@@ -1,4 +1,4 @@
-#SONATA for Arbor
+# SONATA for Arbor
 
 ### Build the example and unit tests
 #### Clone and build the arbor library
