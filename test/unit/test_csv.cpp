@@ -50,9 +50,11 @@ TEST(csv_node_record, constructor) {
     auto m0 = r.morph(t0);
     auto m1 = r.morph(t1);
 
-    EXPECT_EQ(m0, m1);
-    EXPECT_TRUE(m0.has_soma());
-    EXPECT_EQ(2, m0.components());
+    EXPECT_EQ(m0.spherical_root(), m1.spherical_root());
+    EXPECT_EQ(m0.num_branches(), m1.num_branches());
+    EXPECT_EQ(m0.num_samples(), m1.num_samples());
+
+    EXPECT_EQ(2, m0.num_branches());
 
     EXPECT_THROW(r.morph(t2), sonata_exception);
 
@@ -78,7 +80,7 @@ TEST(csv_node_record, constructor) {
 
     EXPECT_EQ(0, l2.size());
 
-    auto soma_mechs = l0.at(arb::section_kind::soma);
+    auto soma_mechs = l0.at(section_kind::soma);
     for (auto m: soma_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-65, m.get("e"));
@@ -89,7 +91,7 @@ TEST(csv_node_record, constructor) {
         }
     }
 
-    auto dend_mechs = l0.at(arb::section_kind::dendrite);
+    auto dend_mechs = l0.at(section_kind::dend);
     for (auto m: dend_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-70, m.get("e"));
@@ -99,7 +101,7 @@ TEST(csv_node_record, constructor) {
         }
     }
 
-    soma_mechs = l1.at(arb::section_kind::soma);
+    soma_mechs = l1.at(section_kind::soma);
     for (auto m: soma_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-65, m.get("e"));
@@ -110,7 +112,7 @@ TEST(csv_node_record, constructor) {
         }
     }
 
-    dend_mechs = l1.at(arb::section_kind::dendrite);
+    dend_mechs = l1.at(section_kind::dend);
     for (auto m: dend_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-65, m.get("e"));
@@ -126,7 +128,7 @@ TEST(csv_node_record, constructor) {
     r.override_density_params(t0, overrides);
     l0 = r.density_mech_desc(t0);
 
-    soma_mechs = l0.at(arb::section_kind::soma);
+    soma_mechs = l0.at(section_kind::soma);
     for (auto m: soma_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-65, m.get("e"));
@@ -137,7 +139,7 @@ TEST(csv_node_record, constructor) {
         }
     }
 
-    dend_mechs = l0.at(arb::section_kind::dendrite);
+    dend_mechs = l0.at(section_kind::dend);
     for (auto m: dend_mechs) {
         if (m.name() == "pas") {
             EXPECT_EQ(-80, m.get("e"));

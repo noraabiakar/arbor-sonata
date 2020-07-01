@@ -87,17 +87,17 @@ TEST(model_desc, source_target_maps) {
     auto verify_src_tgt = [&md](const std::vector<arb::group_description>& decomp) {
         md.build_source_and_target_maps(decomp);
 
-        std::vector<segment_location> srcs;
-        std::vector<std::pair<segment_location, arb::mechanism_desc>> tgts;
+        std::vector<arb::mlocation> srcs;
+        std::vector<std::pair<arb::mlocation, arb::mechanism_desc>> tgts;
         md.get_sources_and_targets(0, srcs, tgts);
 
         EXPECT_EQ(1, srcs.size());
-        EXPECT_EQ(1, srcs[0].segment);
-        EXPECT_NEAR(0.3, srcs[0].position, 1e-5);
+        EXPECT_EQ(1, srcs[0].branch);
+        EXPECT_NEAR(0.3, srcs[0].pos, 1e-5);
 
         EXPECT_EQ(1, tgts.size());
-        EXPECT_EQ(0, tgts[0].first.segment);
-        EXPECT_NEAR(0, tgts[0].first.position, 1e-5);
+        EXPECT_EQ(0, tgts[0].first.branch);
+        EXPECT_NEAR(0, tgts[0].first.pos, 1e-5);
         EXPECT_EQ("expsyn", tgts[0].second.name());
 
         srcs.clear();
@@ -105,12 +105,12 @@ TEST(model_desc, source_target_maps) {
         md.get_sources_and_targets(1, srcs, tgts);
 
         EXPECT_EQ(1, srcs.size());
-        EXPECT_EQ(1, srcs[0].segment);
-        EXPECT_NEAR(0.2, srcs[0].position, 1e-5);
+        EXPECT_EQ(1, srcs[0].branch);
+        EXPECT_NEAR(0.2, srcs[0].pos, 1e-5);
 
         EXPECT_EQ(1, tgts.size());
-        EXPECT_EQ(0, tgts[0].first.segment);
-        EXPECT_NEAR(0.5, tgts[0].first.position, 1e-5);
+        EXPECT_EQ(0, tgts[0].first.branch);
+        EXPECT_NEAR(0.5, tgts[0].first.pos, 1e-5);
         EXPECT_EQ("expsyn", tgts[0].second.name());
         EXPECT_NEAR(0.51, tgts[0].second.values().at("e"), 1e-5);
 
@@ -120,12 +120,12 @@ TEST(model_desc, source_target_maps) {
         md.get_sources_and_targets(2, srcs, tgts);
 
         EXPECT_EQ(1, srcs.size());
-        EXPECT_EQ(3, srcs[0].segment);
-        EXPECT_NEAR(0.2, srcs[0].position, 1e-5);
+        EXPECT_EQ(3, srcs[0].branch);
+        EXPECT_NEAR(0.2, srcs[0].pos, 1e-5);
 
         EXPECT_EQ(1, tgts.size());
-        EXPECT_EQ(0, tgts[0].first.segment);
-        EXPECT_NEAR(0, tgts[0].first.position, 1e-5);
+        EXPECT_EQ(0, tgts[0].first.branch);
+        EXPECT_NEAR(0, tgts[0].first.pos, 1e-5);
         EXPECT_EQ("expsyn", tgts[0].second.name());
 
         srcs.clear();
@@ -135,8 +135,8 @@ TEST(model_desc, source_target_maps) {
         EXPECT_EQ(0, srcs.size());
 
         EXPECT_EQ(1, tgts.size());
-        EXPECT_EQ(5, tgts[0].first.segment);
-        EXPECT_NEAR(0.6, tgts[0].first.position, 1e-5);
+        EXPECT_EQ(5, tgts[0].first.branch);
+        EXPECT_NEAR(0.6, tgts[0].first.pos, 1e-5);
         EXPECT_EQ("expsyn", tgts[0].second.name());
 
         srcs.clear();
@@ -144,15 +144,15 @@ TEST(model_desc, source_target_maps) {
         md.get_sources_and_targets(4, srcs, tgts);
 
         EXPECT_EQ(1, srcs.size());
-        EXPECT_EQ(0, srcs[0].segment);
-        EXPECT_NEAR(0.9, srcs[0].position, 1e-5);
+        EXPECT_EQ(0, srcs[0].branch);
+        EXPECT_NEAR(0.9, srcs[0].pos, 1e-5);
 
         EXPECT_EQ(2, tgts.size());
-        EXPECT_EQ(0, tgts[0].first.segment);
-        EXPECT_NEAR(0.4, tgts[0].first.position, 1e-5);
+        EXPECT_EQ(0, tgts[0].first.branch);
+        EXPECT_NEAR(0.4, tgts[0].first.pos, 1e-5);
         EXPECT_EQ("exp2syn", tgts[0].second.name());
-        EXPECT_EQ(2, tgts[1].first.segment);
-        EXPECT_NEAR(0.1, tgts[1].first.position, 1e-5);
+        EXPECT_EQ(2, tgts[1].first.branch);
+        EXPECT_NEAR(0.1, tgts[1].first.pos, 1e-5);
         EXPECT_EQ("exp2syn", tgts[1].second.name());
     };
 
@@ -225,23 +225,21 @@ TEST(model_desc, connections) {
 
 }
 
-TEST(model_desc, morphologies) {
+/*TEST(model_desc, morphologies) {
     auto md = simple_network();
 
     for (auto i = 0; i < 4; i++) {
         auto morph = md.get_cell_morphology(i);
-        EXPECT_TRUE(morph.has_soma());
         EXPECT_DOUBLE_EQ(6.30785, morph.soma.r);
-        EXPECT_EQ(1, morph.sections.size());
+        EXPECT_EQ(1, morph.num_branches());
     }
 
     auto morph = md.get_cell_morphology(4);
-    EXPECT_TRUE(morph.has_soma());
     EXPECT_DOUBLE_EQ(3.5, morph.soma.r);
-    EXPECT_EQ(0, morph.sections.size());
+    EXPECT_EQ(0, morph.num_branches());
 
     EXPECT_THROW(md.get_cell_morphology(5), sonata_exception);
-}
+}*/
 
 TEST(model_desc, cell_kinds) {
     auto md = simple_network();
@@ -260,11 +258,11 @@ TEST(model_desc, density_mechs) {
     for (unsigned i = 0; i < 5; i++) {
         auto mechs_per_sec = md.get_density_mechs(i);
         EXPECT_EQ(2, mechs_per_sec.size());
-        EXPECT_TRUE(mechs_per_sec.find(arb::section_kind::soma) != mechs_per_sec.end());
-        EXPECT_TRUE(mechs_per_sec.find(arb::section_kind::dendrite) != mechs_per_sec.end());
+        EXPECT_TRUE(mechs_per_sec.find(section_kind::soma) != mechs_per_sec.end());
+        EXPECT_TRUE(mechs_per_sec.find(section_kind::dend) != mechs_per_sec.end());
 
-        auto mech_soma = mechs_per_sec.at(arb::section_kind::soma);
-        auto mech_dend = mechs_per_sec.at(arb::section_kind::dendrite);
+        auto mech_soma = mechs_per_sec.at(section_kind::soma);
+        auto mech_dend = mechs_per_sec.at(section_kind::dend);
 
         EXPECT_EQ(2, mech_soma.size());
         EXPECT_EQ(1, mech_dend.size());

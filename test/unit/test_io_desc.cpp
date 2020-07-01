@@ -90,8 +90,10 @@ TEST(io_desc, clamps) {
     auto in = simple_input();
 
     auto clamps = in.get_current_clamps(0);
+    auto loc = arb::mlocation{0,0.5};
+
     EXPECT_EQ(1, clamps.size());
-    EXPECT_EQ(arb::segment_location({0,0.5}), clamps.front().stim_loc);
+    EXPECT_EQ(loc, clamps.front().stim_loc);
     EXPECT_EQ(0, clamps.front().delay);
     EXPECT_EQ(0.4, clamps.front().amplitude);
     EXPECT_EQ(5, clamps.front().duration);
@@ -126,39 +128,31 @@ TEST(io_desc, probes) {
 
     EXPECT_THROW(in.get_probe({0,2}), sonata_exception);
 
-    auto p = in.get_probe({0,0});
-    auto add = arb::util::any_cast<arb::cell_probe_address>(p.address);
-    EXPECT_EQ(cell_member_type({0,0}), p.id);
-    EXPECT_EQ(arb::cell_probe_address::membrane_voltage, add.kind);
-    EXPECT_EQ(arb::segment_location({0,0.5}), add.location);
+//    auto p = in.get_probe(0);
+//    auto add = arb::util::any_cast<arb::cable_probe_membrane_voltage>(p.address);
+//    auto loc = arb::mlocation{0,0.5};
+//    EXPECT_EQ(loc, add.locations.front());
 
-    p = in.get_probe({2,0});
-    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
-    EXPECT_EQ(cell_member_type({2,0}), p.id);
-    EXPECT_EQ(arb::cell_probe_address::membrane_voltage, add.kind);
-    EXPECT_EQ(arb::segment_location({0,0.5}), add.location);
+//    p = in.get_probe(2);
+//    add = arb::util::any_cast<arb::cable_probe_membrane_voltage>(p.address);
+//    EXPECT_EQ(loc, add.locations.front());
 
-    p = in.get_probe({5,0});
-    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
-    EXPECT_EQ(cell_member_type({5,0}), p.id);
-    EXPECT_EQ(arb::cell_probe_address::membrane_voltage, add.kind);
-    EXPECT_EQ(arb::segment_location({1,0.2}), add.location);
+//    p = in.get_probe(5);
+//    add = arb::util::any_cast<arb::cable_probe_membrane_voltage>(p.address);
+//    loc = arb::mlocation{1,0.2};
+//    EXPECT_EQ(loc, add.locations.front());
 
-    p = in.get_probe({0,1});
-    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
-    EXPECT_EQ(cell_member_type({0,1}), p.id);
-    EXPECT_EQ(arb::cell_probe_address::membrane_current, add.kind);
-    EXPECT_EQ(arb::segment_location({1,0.1}), add.location);
+//    p = in.get_probe(0);
+//    add = arb::util::any_cast<arb::cable_probe_axial_current>(p.address);
+//    loc = arb::mlocation{1,0.1};
+//    EXPECT_EQ(loc, add.locations.front());
 
-    p = in.get_probe({3,0});
-    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
-    EXPECT_EQ(cell_member_type({3,0}), p.id);
-    EXPECT_EQ(arb::cell_probe_address::membrane_current, add.kind);
-    EXPECT_EQ(arb::segment_location({1,0.1}), add.location);
+//    p = in.get_probe(3);
+//    add = arb::util::any_cast<arb::cable_probe_axial_current>(p.address);
+//    EXPECT_EQ(loc, add.locations.front());
 
-    p = in.get_probe({4,0});
-    add = arb::util::any_cast<arb::cell_probe_address>(p.address);
-    EXPECT_EQ(cell_member_type({4,0}), p.id);
-    EXPECT_EQ(arb::cell_probe_address::membrane_current, add.kind);
-    EXPECT_EQ(arb::segment_location({0,0.3}), add.location);
+//    p = in.get_probe(4);
+//    add = arb::util::any_cast<arb::cable_probe_axial_current>(p.address);
+//    loc = arb::mlocation{0,0.3};
+//    EXPECT_EQ(loc, add.locations.front());
 }
