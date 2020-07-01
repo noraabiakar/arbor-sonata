@@ -35,7 +35,6 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::cell_kind;
 using arb::time_type;
-using arb::cell_probe_address;
 
 class sonata_recipe: public arb::recipe {
 public:
@@ -64,8 +63,8 @@ public:
 
     arb::util::unique_any get_cell_description(cell_gid_type gid) const override {
         if (get_cell_kind(gid) == cell_kind::cable) {
-            std::vector<arb::segment_location> src_locs;
-            std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> tgt_types;
+            std::vector<arb::mlocation> src_locs;
+            std::vector<std::pair<arb::mlocation, arb::mechanism_desc>> tgt_types;
 
             std::lock_guard<std::mutex> l(mtx_);
             auto morph = model_desc_.get_cell_morphology(gid);
@@ -73,7 +72,7 @@ public:
 
             model_desc_.get_sources_and_targets(gid, src_locs, tgt_types);
 
-            std::vector<std::pair<arb::segment_location, double>> src_types;
+            std::vector<std::pair<arb::mlocation, double>> src_types;
             for (auto s: src_locs) {
                 src_types.push_back(std::make_pair(s, run_params_.threshold));
             }

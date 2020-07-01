@@ -8,7 +8,7 @@ using arb::cell_gid_type;
 using arb::cell_lid_type;
 using arb::cell_size_type;
 using arb::cell_member_type;
-using arb::segment_location;
+using arb::mlocation;
 
 model_desc::model_desc(h5_record nodes,
                        h5_record edges,
@@ -43,6 +43,7 @@ std::string model_desc::population_of(cell_gid_type gid) const {
             return nodes_.populations()[i-1].name();
         }
     }
+    return {};
 }
 
 unsigned model_desc::population_id_of(cell_gid_type gid) const {
@@ -51,6 +52,7 @@ unsigned model_desc::population_id_of(cell_gid_type gid) const {
             return gid - nodes_.partitions()[i-1];
         }
     }
+    return {};
 }
 
 void model_desc::build_source_and_target_maps(const std::vector<arb::group_description>& groups) {
@@ -156,16 +158,16 @@ void model_desc::build_source_and_target_maps(const std::vector<arb::group_descr
     }
 }
 
-void model_desc::get_sources_and_targets(cell_gid_type gid, std::vector<segment_location>& src,
-        std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) const {
+void model_desc::get_sources_and_targets(cell_gid_type gid, std::vector<mlocation>& src,
+        std::vector<std::pair<mlocation, arb::mechanism_desc>>& tgt) const {
     src.reserve(source_maps_.at(gid).size());
     for (auto s: source_maps_.at(gid)) {
-        src.push_back(segment_location(s.segment, s.position));
+        src.push_back(mlocation{s.segment, s.position});
     }
 
     tgt.reserve(target_maps_.at(gid).size());
     for (auto t: target_maps_.at(gid)) {
-        tgt.push_back(std::make_pair(segment_location(t.first.segment, t.first.position), t.first.synapse));
+        tgt.push_back(std::make_pair(mlocation{t.first.segment, t.first.position}, t.first.synapse));
     }
 }
 
@@ -189,7 +191,7 @@ arb::morphology model_desc::get_cell_morphology(cell_gid_type gid) {
 
             std::ifstream f(file);
             if (!f) throw sonata_exception("Unable to open SWC file");
-            return arb::swc_as_morphology(arb::parse_swc_file(f));
+            return arb::morphology(arb::swc_as_sample_tree(arb::parse_swc_file(f)));
         }
     }
     return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));
@@ -288,7 +290,7 @@ void model_desc::get_connections(cell_gid_type gid, std::vector<arb::cell_connec
     }
 }
 
-std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> model_desc::get_density_mechs(cell_gid_type gid) {
+std::unordered_map<section_kind, std::vector<arb::mechanism_desc>> model_desc::get_density_mechs(cell_gid_type gid) {
     auto loc_node = nodes_.localize(gid);
     auto node_pop_name = loc_node.pop_name;
     auto node_pop_id = nodes_.map()[node_pop_name];
@@ -678,7 +680,7 @@ void io_desc::build_current_clamp_map(std::vector<current_clamp_info> current) {
                 auto local_loc = i.second;
                 auto global_gid = nodes_.globalize({local_loc.population, local_loc.gid});
 
-                current_clamp_map_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::segment_location(local_loc.seg, local_loc.pos));
+                current_clamp_map_[global_gid].emplace_back(params.dur, params.amp, params.delay, arb::mlocation{local_loc.seg, local_loc.pos});
             }
             else {
                 throw sonata_exception("Electrode id has no corresponding input description");
@@ -696,12 +698,12 @@ void io_desc::build_probe_map(std::vector<probe_info> probes) {
                 probe_count_[gid] = 0;
             }
             cell_member_type id = {gid, probe_count_[gid]++};
-            segment_location loc = {probe.sec_id, probe.sec_pos};
-            arb::cell_probe_address::probe_kind kind = probe.kind == "v" ?
-                                                       arb::cell_probe_address::membrane_voltage :
-                                                       arb::cell_probe_address::membrane_current;
-
-            probe_map_[id] = arb::probe_info{id, kind, arb::cell_probe_address{loc, kind}};
+            mlocation loc = {probe.sec_id, probe.sec_pos};
+            if (probe.kind == "v") {
+                probe_map_.insert({id, arb::probe_info{arb::cable_probe_membrane_voltage{loc}}});
+            } else {
+                probe_map_.insert({id, arb::probe_info{arb::cable_probe_axial_current{loc}}});
+            };
             probe_groups_[probe.file_name].push_back(id);
         }
     }

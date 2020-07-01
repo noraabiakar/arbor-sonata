@@ -35,14 +35,13 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::cell_kind;
 using arb::time_type;
-using arb::cell_probe_address;
 
 // Generate a cell.
 arb::cable_cell dummy_cell(
         arb::morphology morph,
-        std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> mechs,
-        std::vector<std::pair<arb::segment_location, double>> detectors,
-        std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> synapses) {
+        std::unordered_map<section_kind, std::vector<arb::mechanism_desc>> mechs,
+        std::vector<std::pair<arb::mlocation, double>> detectors,
+        std::vector<std::pair<arb::mlocation, arb::mechanism_desc>> synapses) {
 
     arb::cable_cell cell = arb::make_cable_cell(morph);
 
@@ -51,7 +50,7 @@ arb::cable_cell dummy_cell(
         for (auto mech: mechs[segment->kind()]) {
             segment->add_mechanism(mech);
         }
-        if (segment->kind() == arb::section_kind::dendrite || segment->kind() == arb::section_kind::axon) {
+        if (segment->kind() == section_kind::dendrite || segment->kind() == section_kind::axon) {
             segment->set_compartments(200);
         }
     }

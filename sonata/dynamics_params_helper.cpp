@@ -2,7 +2,6 @@
 #include <fstream>
 #include <unordered_map>
 
-#include <arbor/segment.hpp>
 #include <common/json_params.hpp>
 
 #include "include/sonata_exceptions.hpp"

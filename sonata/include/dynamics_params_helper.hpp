@@ -4,8 +4,6 @@
 #include <fstream>
 #include <unordered_map>
 
-#include <arbor/segment.hpp>
-
 #include "density_mech_helper.hpp"
 
 arb::mechanism_desc read_dynamics_params_point(std::string fname);

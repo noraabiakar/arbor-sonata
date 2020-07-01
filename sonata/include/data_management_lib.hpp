@@ -9,8 +9,6 @@
 #include <unordered_set>
 #include <set>
 
-#include "hdf5_lib.hpp"
-#include "csv_lib.hpp"
 #include "sonata_exceptions.hpp"
 #include "common_structs.hpp"
 
@@ -18,7 +16,7 @@ using arb::cell_gid_type;
 using arb::cell_lid_type;
 using arb::cell_size_type;
 using arb::cell_member_type;
-using arb::segment_location;
+using arb::mlocation;
 
 class model_desc {
 public:
@@ -54,8 +52,8 @@ public:
 
     /// Read maps
 
-    void get_sources_and_targets(cell_gid_type gid, std::vector<segment_location>& src,
-                                 std::vector<std::pair<segment_location, arb::mechanism_desc>>& tgt) const;
+    void get_sources_and_targets(cell_gid_type gid, std::vector<mlocation>& src,
+                                 std::vector<std::pair<mlocation, arb::mechanism_desc>>& tgt) const;
 
 
     // Look for morphology file in hdf5 file; if not found, use the default morphology from the node csv file
@@ -69,7 +67,7 @@ public:
 
     // Queries csv/hdf5 records as needed to get a cell's density mechanisms (with correct parameter overrides)
     // Returns a map from section kind (soma, dend, etc) to a vector of mechanism_desc
-    std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> get_density_mechs(cell_gid_type);
+    std::unordered_map<section_kind, std::vector<arb::mechanism_desc>> get_density_mechs(cell_gid_type);
 
     /// Read relevant information from the relevant hdf5 file in ranges and aggregate in convenient structs
 
