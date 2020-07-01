@@ -82,7 +82,7 @@ public:
             auto stims = io_desc_.get_current_clamps(gid);
             for (auto s: stims) {
                 arb::i_clamp stim(s.delay, s.duration, s.amplitude);
-                cell.add_stimulus(s.stim_loc, stim);
+                cell.place(s.stim_loc, stim);
             }
 
             return cell;
@@ -92,6 +92,7 @@ public:
             std::vector<double> time_sequence = io_desc_.get_spikes(gid);
             return arb::util::unique_any(arb::spike_source_cell{arb::explicit_schedule(time_sequence)});
         }
+        return {};
     }
 
     cell_kind get_cell_kind(cell_gid_type gid) const override {
@@ -123,23 +124,20 @@ public:
         return gens;
     }
 
-    cell_size_type num_probes(cell_gid_type gid)  const override {
-        return io_desc_.get_num_probes(gid);
+    std::vector<arb::probe_info> get_probes(cell_gid_type gid) const override {
+        return io_desc_.get_probe(gid);
     }
 
-    arb::probe_info get_probe(cell_member_type id) const override {
-        return io_desc_.get_probe(id);
-    }
-
-    std::unordered_map<std::string, std::vector<cell_member_type>> get_probe_groups() {
+    std::unordered_map<std::string, std::vector<cell_gid_type>> get_probe_groups() {
         return io_desc_.get_probe_groups();
     }
 
     arb::util::any get_global_properties(cell_kind k) const override {
-        arb::cable_cell_global_properties a;
-        a.temperature_K = sim_cond_.temp_c + 273.15;
-        a.init_membrane_potential_mV = sim_cond_.v_init;
-        return a;
+        arb::cable_cell_global_properties gprop;
+        gprop.default_parameters = arb::neuron_parameter_defaults;
+        gprop.default_parameters.temperature_K = sim_cond_.temp_c + 273.15;
+        gprop.default_parameters.init_membrane_potential = sim_cond_.v_init;
+        return gprop;
     }
 
     std::vector<unsigned> get_pop_partitions() const {

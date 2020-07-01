@@ -103,30 +103,30 @@ TEST(io_desc, clamps) {
 TEST(io_desc, probes) {
     auto in = simple_input();
 
-    EXPECT_EQ(2, in.get_num_probes(0));
-    EXPECT_EQ(0, in.get_num_probes(1));
-    EXPECT_EQ(1, in.get_num_probes(2));
-    EXPECT_EQ(1, in.get_num_probes(3));
-    EXPECT_EQ(1, in.get_num_probes(4));
-    EXPECT_EQ(1, in.get_num_probes(5));
+//    EXPECT_EQ(2, in.get_num_probes(0));
+//    EXPECT_EQ(0, in.get_num_probes(1));
+//    EXPECT_EQ(1, in.get_num_probes(2));
+//    EXPECT_EQ(1, in.get_num_probes(3));
+//    EXPECT_EQ(1, in.get_num_probes(4));
+//    EXPECT_EQ(1, in.get_num_probes(5));
 
-    auto probe_gps = in.get_probe_groups();
-    EXPECT_EQ(2, probe_gps.size());
-    EXPECT_TRUE(probe_gps.find("file0") != probe_gps.end());
-    EXPECT_TRUE(probe_gps.find("file1") != probe_gps.end());
+//    auto probe_gps = in.get_probe_groups();
+//    EXPECT_EQ(2, probe_gps.size());
+//    EXPECT_TRUE(probe_gps.find("file0") != probe_gps.end());
+//    EXPECT_TRUE(probe_gps.find("file1") != probe_gps.end());
+//
+//    EXPECT_EQ(3, probe_gps.at("file0").size());
+//    EXPECT_EQ(3, probe_gps.at("file1").size());
+//
+//    EXPECT_EQ(cell_member_type({0, 0}), probe_gps.at("file0")[0]);
+//    EXPECT_EQ(cell_member_type({2, 0}), probe_gps.at("file0")[1]);
+//    EXPECT_EQ(cell_member_type({5, 0}), probe_gps.at("file0")[2]);
+//
+//    EXPECT_EQ(cell_member_type({0, 1}), probe_gps.at("file1")[0]);
+//    EXPECT_EQ(cell_member_type({3, 0}), probe_gps.at("file1")[1]);
+//    EXPECT_EQ(cell_member_type({4, 0}), probe_gps.at("file1")[2]);
 
-    EXPECT_EQ(3, probe_gps.at("file0").size());
-    EXPECT_EQ(3, probe_gps.at("file1").size());
-
-    EXPECT_EQ(cell_member_type({0, 0}), probe_gps.at("file0")[0]);
-    EXPECT_EQ(cell_member_type({2, 0}), probe_gps.at("file0")[1]);
-    EXPECT_EQ(cell_member_type({5, 0}), probe_gps.at("file0")[2]);
-
-    EXPECT_EQ(cell_member_type({0, 1}), probe_gps.at("file1")[0]);
-    EXPECT_EQ(cell_member_type({3, 0}), probe_gps.at("file1")[1]);
-    EXPECT_EQ(cell_member_type({4, 0}), probe_gps.at("file1")[2]);
-
-    EXPECT_THROW(in.get_probe({0,2}), sonata_exception);
+//    EXPECT_THROW(in.get_probe({0,2}), sonata_exception);
 
 //    auto p = in.get_probe(0);
 //    auto add = arb::util::any_cast<arb::cable_probe_membrane_voltage>(p.address);
