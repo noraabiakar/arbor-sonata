@@ -116,9 +116,9 @@ public:
 
     cell_size_type get_num_probes(cell_gid_type gid) const;
 
-    std::vector<arb::probe_info> get_probe(cell_gid_type id) const;
+    std::vector<trace_index_and_info> get_probe(cell_gid_type gid) const;
 
-    std::unordered_map<std::string, std::vector<cell_gid_type>> get_probe_groups() const;
+    std::unordered_map<std::string, std::vector<cell_member_type>> get_probe_groups() const;
 
 private:
     h5_record nodes_;
@@ -130,13 +130,10 @@ private:
     std::unordered_map<cell_gid_type, std::vector<double>> spike_map_;
 
     // Map from cell_gid_type to vector of time stamps of input spikes
-    std::unordered_map<cell_gid_type, std::vector<arb::probe_info>> probe_map_;
+    std::unordered_map<cell_gid_type, std::vector<trace_index_and_info>> probe_map_;
 
     // Map from file name to vector of probes (cell_member_types) to be recorded in the file
-    std::unordered_map<std::string, std::vector<cell_gid_type>> probe_groups_;
-
-    // Map from gid to number of probes on cell
-    std::unordered_map<cell_gid_type, cell_size_type> probe_count_;
+    std::unordered_map<std::string, std::vector<cell_member_type>> probe_groups_;
 
 };
 

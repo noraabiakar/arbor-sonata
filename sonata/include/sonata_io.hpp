@@ -377,7 +377,7 @@ void write_trace(const std::unordered_map<cell_member_type, trace_info>& trace,
                 auto map_group = pop_group->add_group("mapping");
 
                 hsize_t num_traces = trace_part[p+1] - trace_part[p];
-                hsize_t size_trace = trace.at(traced_probes.front()).data.size();
+                hsize_t size_trace = trace.at(traced_probes.front()).data.at(0).size();
 
                 std::vector<std::vector<double>> trace_data(num_traces);
                 std::vector<double> trace_time(size_trace);
@@ -390,11 +390,11 @@ void write_trace(const std::unordered_map<cell_member_type, trace_info>& trace,
                 unsigned i;
                 for (i = trace_part[p]; i < trace_part[p+1]; i++) {
                     auto& info = trace.at(traced_probes[i]);
-                    for (auto data: info.data) {
+                    for (auto data: info.data.at(0)) {
                         trace_data[i - trace_part[p]].push_back(data.v);
                     }
-                    seg_id[i - trace_part[p]] = info.seg_id;
-                    seg_pos[i - trace_part[p]] = info.seg_pos;
+                    seg_id[i - trace_part[p]] = info.loc.branch;
+                    seg_pos[i - trace_part[p]] = info.loc.pos;
 
                     if (i > trace_part[p]) {
                         if (traced_probes[i].gid != traced_probes[i-1].gid) {
@@ -407,8 +407,8 @@ void write_trace(const std::unordered_map<cell_member_type, trace_info>& trace,
                 unique_gids.push_back(traced_probes[i-1].gid - pop_parts[p]);
 
                 auto& info = trace.at(traced_probes[trace_part[p]]);
-                for (unsigned j = 0; j < info.data.size(); j++) {
-                    trace_time[j] = info.data[j].t;
+                for (unsigned j = 0; j < info.data.at(0).size(); j++) {
+                    trace_time[j] = info.data.at(0)[j].t;
                 }
 
                 //Write values

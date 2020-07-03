@@ -95,18 +95,20 @@ inline bool operator==(const target_type& lhs, const target_type& rhs) {
 
 struct trace_info {
     bool is_voltage;
-    cell_lid_type seg_id;
-    double seg_pos;
+    arb::mlocation loc;
 
-    arb::trace_data<double> data;
+    arb::trace_vector<double> data;
 
     trace_info() {};
 
-    trace_info(arb::cable_probe_membrane_voltage p) {
-        is_voltage = true;
-        //seg_id = p.location.segment;
-        //seg_pos = p.location.position;
-    };
+    trace_info(bool v, arb::mlocation l): is_voltage(v), loc(l) {};
+};
+
+struct trace_index_and_info {
+    unsigned idx;
+    trace_info info;
+
+    trace_index_and_info(unsigned idx, trace_info t): idx(idx), info(t) {};
 };
 
 

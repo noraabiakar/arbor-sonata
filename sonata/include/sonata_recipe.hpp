@@ -124,11 +124,25 @@ public:
         return gens;
     }
 
-    std::vector<arb::probe_info> get_probes(cell_gid_type gid) const override {
+    std::vector<trace_index_and_info> get_probes_info(cell_gid_type gid) const {
         return io_desc_.get_probe(gid);
     }
 
-    std::unordered_map<std::string, std::vector<cell_gid_type>> get_probe_groups() {
+    std::vector<arb::probe_info> get_probes(cell_gid_type gid) const override {
+        std::vector<arb::probe_info> probes;
+        std::vector<trace_index_and_info> pbs = io_desc_.get_probe(gid);
+
+        for (auto p: pbs) {
+            if (p.info.is_voltage) {
+                probes.push_back(arb::probe_info{arb::cable_probe_membrane_voltage{p.info.loc}});
+            } else {
+                probes.push_back(arb::probe_info{arb::cable_probe_axial_current{p.info.loc}});
+            }
+        }
+        return probes;
+    }
+
+    std::unordered_map<std::string, std::vector<cell_member_type>> get_probe_groups() {
         return io_desc_.get_probe_groups();
     }
 

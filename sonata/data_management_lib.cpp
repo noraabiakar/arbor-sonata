@@ -690,17 +690,24 @@ void io_desc::build_current_clamp_map(std::vector<current_clamp_info> current) {
 }
 
 void io_desc::build_probe_map(std::vector<probe_info> probes) {
+    std::unordered_map<cell_gid_type, cell_size_type> probe_count;
+
     for (auto probe: probes) {
         for (auto i: probe.node_ids) {
             auto gid = nodes_.globalize({probe.population, i});
 
+            if (probe_count.find(gid) == probe_count.end()) {
+                probe_count[gid] = 0;
+            }
+            cell_lid_type idx = probe_count[gid]++;
             mlocation loc = {probe.sec_id, probe.sec_pos};
+
             if (probe.kind == "v") {
-                probe_map_[gid].push_back(arb::probe_info{arb::cable_probe_membrane_voltage{loc}});
+                probe_map_[gid].emplace_back(idx, trace_info(true, loc));
             } else {
-                probe_map_[gid].push_back(arb::probe_info{arb::cable_probe_axial_current{loc}});
+                probe_map_[gid].emplace_back(idx, trace_info(false, loc));
             };
-            probe_groups_[probe.file_name].push_back(gid);
+            probe_groups_[probe.file_name].push_back({gid, idx});
         }
     }
 }
@@ -719,13 +726,13 @@ std::vector<double> io_desc::get_spikes(cell_gid_type gid) const {
     return {};
 };
 
-std::vector<arb::probe_info> io_desc::get_probe(cell_gid_type gid) const {
+std::vector<trace_index_and_info> io_desc::get_probe(cell_gid_type gid) const {
     if (probe_map_.find(gid) != probe_map_.end()) {
         return probe_map_.at(gid);
     }
     return {};
 };
 
-std::unordered_map<std::string, std::vector<cell_gid_type>> io_desc::get_probe_groups() const {
+std::unordered_map<std::string, std::vector<cell_member_type>> io_desc::get_probe_groups() const {
     return probe_groups_;
 };
