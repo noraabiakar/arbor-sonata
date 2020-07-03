@@ -33,7 +33,6 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::cell_kind;
 using arb::time_type;
-using arb::cell_probe_address;
 
 int main(int argc, char **argv)
 {
@@ -87,14 +86,14 @@ int main(int argc, char **argv)
         std::unordered_map<cell_member_type, trace_info> traces;
         auto sched = arb::regular_schedule(0.1);
 
-        for (unsigned i = 0; i < recipe.num_cells(); i++) {
-            for (unsigned j = 0; j < recipe.num_probes(i); j++) {
-                auto probe = recipe.get_probe({i,j});
-                auto probe_address = arb::util::any_cast<cell_probe_address>(probe.address);
-                trace_info t(probe_address);
-                traces[{i, j}] = t;
 
-                sim.add_sampler(arb::one_probe({i, j}), sched, arb::make_simple_sampler(traces[{i, j}].data));
+        for (unsigned gid = 0; gid < recipe.num_cells(); gid++) {
+            auto pbs = recipe.get_probes_info(gid);
+            for (auto p:pbs) {
+                trace_info t(p.info.is_voltage, p.info.loc);
+                traces[{gid, p.idx}] = t;
+
+                sim.add_sampler(arb::one_probe({gid, p.idx}), sched, arb::make_simple_sampler(traces[{gid, p.idx}].data));
             }
         }
 

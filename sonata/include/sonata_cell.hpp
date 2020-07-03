@@ -35,34 +35,41 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::cell_kind;
 using arb::time_type;
-using arb::cell_probe_address;
 
 // Generate a cell.
 arb::cable_cell dummy_cell(
         arb::morphology morph,
-        std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> mechs,
-        std::vector<std::pair<arb::segment_location, double>> detectors,
-        std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> synapses) {
+        std::unordered_map<section_kind, std::vector<arb::mechanism_desc>> mechs,
+        std::vector<std::pair<arb::mlocation, double>> detectors,
+        std::vector<std::pair<arb::mlocation, arb::mechanism_desc>> synapses) {
+    arb::label_dict d;
 
-    arb::cable_cell cell = arb::make_cable_cell(morph);
+    using arb::reg::tagged;
+    d.set("soma", tagged(1));
+    d.set("axon", tagged(2));
+    d.set("dend", join(tagged(3), tagged(4)));
 
-    for (auto& segment: cell.segments()) {
-        segment->rL = 100;
-        for (auto mech: mechs[segment->kind()]) {
-            segment->add_mechanism(mech);
-        }
-        if (segment->kind() == arb::section_kind::dendrite || segment->kind() == arb::section_kind::axon) {
-            segment->set_compartments(200);
-        }
+    arb::cable_cell cell = arb::cable_cell(morph, d);
+
+    for (auto mech: mechs[section_kind::soma]) {
+        cell.paint("soma", mech);
     }
+    for (auto mech: mechs[section_kind::dend]) {
+        cell.paint("dend", mech);
+    }
+    for (auto mech: mechs[section_kind::axon]) {
+        cell.paint("axon", mech);
+    }
+
+    cell.default_parameters.discretization = arb::cv_policy_fixed_per_branch(200);
 
     // Add spike threshold detector at the soma.
     for (auto d: detectors) {
-        cell.add_detector(d.first, d.second);
+        cell.place(d.first, arb::threshold_detector{d.second});
     }
 
     for (auto s: synapses) {
-        cell.add_synapse(s.first, s.second);
+        cell.place(s.first, s.second);
     }
 
     return cell;

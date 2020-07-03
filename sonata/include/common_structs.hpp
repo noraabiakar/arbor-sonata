@@ -4,6 +4,8 @@
 #include <arbor/cable_cell.hpp>
 #include <arbor/simple_sampler.hpp>
 
+
+#include "csv_lib.hpp"
 #include "hdf5_lib.hpp"
 
 #include <string>
@@ -12,7 +14,7 @@ using arb::cell_gid_type;
 using arb::cell_lid_type;
 using arb::cell_size_type;
 using arb::cell_member_type;
-using arb::segment_location;
+using arb::mlocation;
 
 struct sim_conditions {
     double temp_c;
@@ -58,9 +60,9 @@ struct current_clamp_desc {
     double duration;
     double amplitude;
     double delay;
-    arb::segment_location stim_loc;
+    arb::mlocation stim_loc;
 
-    current_clamp_desc(double dur, double amp, double del, arb::segment_location loc):
+    current_clamp_desc(double dur, double amp, double del, arb::mlocation loc):
             duration(dur), amplitude(amp), delay(del), stim_loc(loc){}
 };
 
@@ -93,18 +95,20 @@ inline bool operator==(const target_type& lhs, const target_type& rhs) {
 
 struct trace_info {
     bool is_voltage;
-    cell_lid_type seg_id;
-    double seg_pos;
+    arb::mlocation loc;
 
-    arb::trace_data<double> data;
+    arb::trace_vector<double> data;
 
     trace_info() {};
 
-    trace_info(arb::cell_probe_address p) {
-        is_voltage = p.kind == arb::cell_probe_address::membrane_voltage;
-        seg_id = p.location.segment;
-        seg_pos = p.location.position;
-    };
+    trace_info(bool v, arb::mlocation l): is_voltage(v), loc(l) {};
+};
+
+struct trace_index_and_info {
+    unsigned idx;
+    trace_info info;
+
+    trace_index_and_info(unsigned idx, trace_info t): idx(idx), info(t) {};
 };
 
 

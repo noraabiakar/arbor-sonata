@@ -35,7 +35,6 @@ using arb::cell_size_type;
 using arb::cell_member_type;
 using arb::cell_kind;
 using arb::time_type;
-using arb::cell_probe_address;
 
 class sonata_recipe: public arb::recipe {
 public:
@@ -64,8 +63,8 @@ public:
 
     arb::util::unique_any get_cell_description(cell_gid_type gid) const override {
         if (get_cell_kind(gid) == cell_kind::cable) {
-            std::vector<arb::segment_location> src_locs;
-            std::vector<std::pair<arb::segment_location, arb::mechanism_desc>> tgt_types;
+            std::vector<arb::mlocation> src_locs;
+            std::vector<std::pair<arb::mlocation, arb::mechanism_desc>> tgt_types;
 
             std::lock_guard<std::mutex> l(mtx_);
             auto morph = model_desc_.get_cell_morphology(gid);
@@ -73,7 +72,7 @@ public:
 
             model_desc_.get_sources_and_targets(gid, src_locs, tgt_types);
 
-            std::vector<std::pair<arb::segment_location, double>> src_types;
+            std::vector<std::pair<arb::mlocation, double>> src_types;
             for (auto s: src_locs) {
                 src_types.push_back(std::make_pair(s, run_params_.threshold));
             }
@@ -83,7 +82,7 @@ public:
             auto stims = io_desc_.get_current_clamps(gid);
             for (auto s: stims) {
                 arb::i_clamp stim(s.delay, s.duration, s.amplitude);
-                cell.add_stimulus(s.stim_loc, stim);
+                cell.place(s.stim_loc, stim);
             }
 
             return cell;
@@ -93,6 +92,7 @@ public:
             std::vector<double> time_sequence = io_desc_.get_spikes(gid);
             return arb::util::unique_any(arb::spike_source_cell{arb::explicit_schedule(time_sequence)});
         }
+        return {};
     }
 
     cell_kind get_cell_kind(cell_gid_type gid) const override {
@@ -124,12 +124,22 @@ public:
         return gens;
     }
 
-    cell_size_type num_probes(cell_gid_type gid)  const override {
-        return io_desc_.get_num_probes(gid);
+    std::vector<trace_index_and_info> get_probes_info(cell_gid_type gid) const {
+        return io_desc_.get_probes(gid);
     }
 
-    arb::probe_info get_probe(cell_member_type id) const override {
-        return io_desc_.get_probe(id);
+    std::vector<arb::probe_info> get_probes(cell_gid_type gid) const override {
+        std::vector<arb::probe_info> probes;
+        std::vector<trace_index_and_info> pbs = io_desc_.get_probes(gid);
+
+        for (auto p: pbs) {
+            if (p.info.is_voltage) {
+                probes.push_back(arb::probe_info{arb::cable_probe_membrane_voltage{p.info.loc}});
+            } else {
+                probes.push_back(arb::probe_info{arb::cable_probe_axial_current{p.info.loc}});
+            }
+        }
+        return probes;
     }
 
     std::unordered_map<std::string, std::vector<cell_member_type>> get_probe_groups() {
@@ -137,10 +147,15 @@ public:
     }
 
     arb::util::any get_global_properties(cell_kind k) const override {
-        arb::cable_cell_global_properties a;
-        a.temperature_K = sim_cond_.temp_c + 273.15;
-        a.init_membrane_potential_mV = sim_cond_.v_init;
-        return a;
+        arb::cable_cell_global_properties gprop;
+        gprop.default_parameters = arb::neuron_parameter_defaults;
+        gprop.default_parameters.axial_resistivity = 100;
+        gprop.default_parameters.temperature_K = sim_cond_.temp_c + 273.15;
+        gprop.default_parameters.init_membrane_potential = sim_cond_.v_init;
+        gprop.default_parameters.reversal_potential_method["k"] = "nernst/k";
+        gprop.default_parameters.reversal_potential_method["na"] = "nernst/na";
+
+        return gprop;
     }
 
     std::vector<unsigned> get_pop_partitions() const {

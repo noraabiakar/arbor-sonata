@@ -1,6 +1,5 @@
 #include <arbor/common_types.hpp>
 #include <arbor/swcio.hpp>
-#include <arbor/segment.hpp>
 
 #include <string>
 #include <fstream>
@@ -97,7 +96,7 @@ csv_node_record::csv_node_record(std::vector<csv_file> files) : csv_record(files
                 }
                 std::ifstream f(type.second["morphology"]);
                 if (!f) throw sonata_exception("Unable to open SWC file");
-                morphologies_[type.first] = arb::swc_as_morphology(arb::parse_swc_file(f));
+                morphologies_[type.first] = arb::morphology(arb::swc_as_sample_tree(arb::parse_swc_file(f)));
             } else {
                 throw sonata_exception("Morphology not found in node csv description");
             }
@@ -147,9 +146,9 @@ std::unordered_map<std::string, variable_map> csv_node_record::dynamic_params(ty
     return ret;
 }
 
-std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> csv_node_record::density_mech_desc(
+std::unordered_map<section_kind, std::vector<arb::mechanism_desc>> csv_node_record::density_mech_desc(
         type_pop_id id, std::unordered_map<std::string, variable_map> overrides) {
-    std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> ret;
+    std::unordered_map<section_kind, std::vector<arb::mechanism_desc>> ret;
 
     std::unordered_map<std::string, mech_groups> density_mechs = density_params_[id];
 

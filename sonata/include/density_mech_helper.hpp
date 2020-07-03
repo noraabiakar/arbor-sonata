@@ -4,7 +4,15 @@
 #include <unordered_map>
 #include <vector>
 
-#include <arbor/morphology.hpp>
+#include <arbor/morph/morphology.hpp>
+#include <arbor/cable_cell_param.hpp>
+
+enum section_kind {
+    soma,
+    dend,
+    axon,
+    none
+};
 
 using variable_map = std::unordered_map<std::string, double>;
 
@@ -14,32 +22,29 @@ using variable_map = std::unordered_map<std::string, double>;
 // instead, the parameters are assigned aliases, which they should get their numerical values from
 // these alieases are stored in `param_alias`
 struct mech_params {
-    arb::section_kind section;
+    section_kind section;
     std::unordered_map<std::string, std::string> param_alias;     // Map from mechansim parameter to alias
     arb::mechanism_desc mech;
 
     mech_params(std::string sec, std::unordered_map<std::string, std::string> map, arb::mechanism_desc full_mech) :
             param_alias(std::move(map)), mech(full_mech) {
         if (sec == "soma") {
-            section = arb::section_kind::soma;
+            section = section_kind::soma;
         } else if (sec == "dend") {
-            section = arb::section_kind::dendrite;
+            section = section_kind::dend;
         } else if (sec == "axon") {
-            section = arb::section_kind::axon;
+            section = section_kind::axon;
         } else {
-            section = arb::section_kind::none;
+            section = section_kind::none;
         }
     }
 
     void print() {
-        if (section == arb::section_kind::soma) {
-            std::cout << "soma" << std::endl;
-        } else if (section == arb::section_kind::dendrite) {
-            std::cout << "dend" << std::endl;
-        } else if (section == arb::section_kind::axon) {
-            std::cout << "axon" << std::endl;
-        } else {
-            std::cout << "none" << std::endl;
+        switch (section) {
+            case section_kind::soma: std::cout << "soma" << std::endl; break;
+            case section_kind::dend: std::cout << "dend" << std::endl; break;
+            case section_kind::axon: std::cout << "axon" << std::endl; break;
+            default: std::cout << "dend" << std::endl;
         }
         std::cout << mech.name() << std::endl;
         for (auto p: mech.values()) {

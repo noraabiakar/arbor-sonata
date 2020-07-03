@@ -74,7 +74,7 @@ public:
 
     // Returns a map from section kinds to mechanism decriptions for a unique node with
     // parameter overrides applied
-    std::unordered_map<arb::section_kind, std::vector<arb::mechanism_desc>> density_mech_desc(type_pop_id id, std::unordered_map<std::string, variable_map> override = {});
+    std::unordered_map<section_kind, std::vector<arb::mechanism_desc>> density_mech_desc(type_pop_id id, std::unordered_map<std::string, variable_map> override = {});
 
     void override_density_params(type_pop_id id, std::unordered_map<std::string, variable_map> override);
 
