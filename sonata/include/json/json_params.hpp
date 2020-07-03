@@ -5,7 +5,7 @@
 
 #include <arbor/util/optional.hpp>
 
-#include <nlohmann/json.hpp>
+#include "json.hpp"
 
 namespace sup {
 
