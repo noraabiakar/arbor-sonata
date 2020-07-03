@@ -60,7 +60,6 @@ arb::cable_cell dummy_cell(
     for (auto mech: mechs[section_kind::axon]) {
         cell.paint("axon", mech);
     }
-    cell.default_parameters.axial_resistivity = 100; // [Ω·cm]
 
     cell.default_parameters.discretization = arb::cv_policy_fixed_per_branch(200);
 

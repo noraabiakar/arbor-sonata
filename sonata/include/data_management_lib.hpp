@@ -116,7 +116,7 @@ public:
 
     cell_size_type get_num_probes(cell_gid_type gid) const;
 
-    std::vector<trace_index_and_info> get_probe(cell_gid_type gid) const;
+    std::vector<trace_index_and_info> get_probes(cell_gid_type gid) const;
 
     std::unordered_map<std::string, std::vector<cell_member_type>> get_probe_groups() const;
 

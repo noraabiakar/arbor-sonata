@@ -125,12 +125,12 @@ public:
     }
 
     std::vector<trace_index_and_info> get_probes_info(cell_gid_type gid) const {
-        return io_desc_.get_probe(gid);
+        return io_desc_.get_probes(gid);
     }
 
     std::vector<arb::probe_info> get_probes(cell_gid_type gid) const override {
         std::vector<arb::probe_info> probes;
-        std::vector<trace_index_and_info> pbs = io_desc_.get_probe(gid);
+        std::vector<trace_index_and_info> pbs = io_desc_.get_probes(gid);
 
         for (auto p: pbs) {
             if (p.info.is_voltage) {
@@ -149,8 +149,12 @@ public:
     arb::util::any get_global_properties(cell_kind k) const override {
         arb::cable_cell_global_properties gprop;
         gprop.default_parameters = arb::neuron_parameter_defaults;
+        gprop.default_parameters.axial_resistivity = 100;
         gprop.default_parameters.temperature_K = sim_cond_.temp_c + 273.15;
         gprop.default_parameters.init_membrane_potential = sim_cond_.v_init;
+        gprop.default_parameters.reversal_potential_method["k"] = "nernst/k";
+        gprop.default_parameters.reversal_potential_method["na"] = "nernst/na";
+
         return gprop;
     }
 

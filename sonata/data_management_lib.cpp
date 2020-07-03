@@ -726,7 +726,7 @@ std::vector<double> io_desc::get_spikes(cell_gid_type gid) const {
     return {};
 };
 
-std::vector<trace_index_and_info> io_desc::get_probe(cell_gid_type gid) const {
+std::vector<trace_index_and_info> io_desc::get_probes(cell_gid_type gid) const {
     if (probe_map_.find(gid) != probe_map_.end()) {
         return probe_map_.at(gid);
     }

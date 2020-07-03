@@ -103,56 +103,48 @@ TEST(io_desc, clamps) {
 TEST(io_desc, probes) {
     auto in = simple_input();
 
-//    EXPECT_EQ(2, in.get_num_probes(0));
-//    EXPECT_EQ(0, in.get_num_probes(1));
-//    EXPECT_EQ(1, in.get_num_probes(2));
-//    EXPECT_EQ(1, in.get_num_probes(3));
-//    EXPECT_EQ(1, in.get_num_probes(4));
-//    EXPECT_EQ(1, in.get_num_probes(5));
+    EXPECT_EQ(2, in.get_probes(0).size());
+    EXPECT_EQ(0, in.get_probes(1).size());
+    EXPECT_EQ(1, in.get_probes(2).size());
+    EXPECT_EQ(1, in.get_probes(3).size());
+    EXPECT_EQ(1, in.get_probes(4).size());
+    EXPECT_EQ(1, in.get_probes(5).size());
 
-//    auto probe_gps = in.get_probe_groups();
-//    EXPECT_EQ(2, probe_gps.size());
-//    EXPECT_TRUE(probe_gps.find("file0") != probe_gps.end());
-//    EXPECT_TRUE(probe_gps.find("file1") != probe_gps.end());
-//
-//    EXPECT_EQ(3, probe_gps.at("file0").size());
-//    EXPECT_EQ(3, probe_gps.at("file1").size());
-//
-//    EXPECT_EQ(cell_member_type({0, 0}), probe_gps.at("file0")[0]);
-//    EXPECT_EQ(cell_member_type({2, 0}), probe_gps.at("file0")[1]);
-//    EXPECT_EQ(cell_member_type({5, 0}), probe_gps.at("file0")[2]);
-//
-//    EXPECT_EQ(cell_member_type({0, 1}), probe_gps.at("file1")[0]);
-//    EXPECT_EQ(cell_member_type({3, 0}), probe_gps.at("file1")[1]);
-//    EXPECT_EQ(cell_member_type({4, 0}), probe_gps.at("file1")[2]);
+    auto probe_gps = in.get_probe_groups();
+    EXPECT_EQ(2, probe_gps.size());
+    EXPECT_TRUE(probe_gps.find("file0") != probe_gps.end());
+    EXPECT_TRUE(probe_gps.find("file1") != probe_gps.end());
 
-//    EXPECT_THROW(in.get_probe({0,2}), sonata_exception);
+    EXPECT_EQ(3, probe_gps.at("file0").size());
+    EXPECT_EQ(3, probe_gps.at("file1").size());
 
-//    auto p = in.get_probe(0);
-//    auto add = arb::util::any_cast<arb::cable_probe_membrane_voltage>(p.address);
-//    auto loc = arb::mlocation{0,0.5};
-//    EXPECT_EQ(loc, add.locations.front());
+    EXPECT_EQ(cell_member_type({0, 0}), probe_gps.at("file0")[0]);
+    EXPECT_EQ(cell_member_type({2, 0}), probe_gps.at("file0")[1]);
+    EXPECT_EQ(cell_member_type({5, 0}), probe_gps.at("file0")[2]);
 
-//    p = in.get_probe(2);
-//    add = arb::util::any_cast<arb::cable_probe_membrane_voltage>(p.address);
-//    EXPECT_EQ(loc, add.locations.front());
+    EXPECT_EQ(cell_member_type({0, 1}), probe_gps.at("file1")[0]);
+    EXPECT_EQ(cell_member_type({3, 0}), probe_gps.at("file1")[1]);
+    EXPECT_EQ(cell_member_type({4, 0}), probe_gps.at("file1")[2]);
 
-//    p = in.get_probe(5);
-//    add = arb::util::any_cast<arb::cable_probe_membrane_voltage>(p.address);
-//    loc = arb::mlocation{1,0.2};
-//    EXPECT_EQ(loc, add.locations.front());
+    auto p = in.get_probes(0);
+    auto loc = arb::mlocation{0,0.5};
+    EXPECT_EQ(loc, p.front().info.loc);
 
-//    p = in.get_probe(0);
-//    add = arb::util::any_cast<arb::cable_probe_axial_current>(p.address);
-//    loc = arb::mlocation{1,0.1};
-//    EXPECT_EQ(loc, add.locations.front());
+    p = in.get_probes(2);
+    EXPECT_EQ(loc, p.front().info.loc);
 
-//    p = in.get_probe(3);
-//    add = arb::util::any_cast<arb::cable_probe_axial_current>(p.address);
-//    EXPECT_EQ(loc, add.locations.front());
+    p = in.get_probes(5);
+    loc = arb::mlocation{1,0.2};
+    EXPECT_EQ(loc, p.front().info.loc);
 
-//    p = in.get_probe(4);
-//    add = arb::util::any_cast<arb::cable_probe_axial_current>(p.address);
-//    loc = arb::mlocation{0,0.3};
-//    EXPECT_EQ(loc, add.locations.front());
+    p = in.get_probes(0);
+    loc = arb::mlocation{1,0.1};
+    EXPECT_EQ(loc, p[1].info.loc);
+
+    p = in.get_probes(3);
+    EXPECT_EQ(loc, p.front().info.loc);
+
+    p = in.get_probes(4);
+    loc = arb::mlocation{0,0.3};
+    EXPECT_EQ(loc, p.front().info.loc);
 }
