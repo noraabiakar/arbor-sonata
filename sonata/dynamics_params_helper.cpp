@@ -2,8 +2,7 @@
 #include <fstream>
 #include <unordered_map>
 
-#include <common/json_params.hpp>
-
+#include "include/json/json_params.hpp"
 #include "include/sonata_exceptions.hpp"
 #include "include/density_mech_helper.hpp"
 

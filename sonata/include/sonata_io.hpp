@@ -6,8 +6,7 @@
 
 #include <hdf5.h>
 
-#include <common/json_params.hpp>
-
+#include "json/json_params.hpp"
 #include "data_management_lib.hpp"
 
 using h5_file_handle = std::shared_ptr<h5_file>;
