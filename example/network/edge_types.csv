@@ -1,6 +1,6 @@
 edge_type_id,pop_name,source_pop_name,target_pop_name,model_template,dynamics_params,delay,syn_weight,afferent_section_id,afferent_section_pos,efferent_section_id,efferent_section_pos,threshold
-100,pop_e_e,pop_e,pop_e,expsyn,/home/abiakarn/git/delete/arbor-sonata/example/components/point_params/expsyn.json,0.1,0.01,0,0.95,0,0.05,10
-101,pop_i_e,pop_i,pop_e,expsyn,/home/abiakarn/git/delete/arbor-sonata/example/components/point_params/expsyn.json,0.1,-0.01,0,0.05,0,0.95,10
-102,pop_i_i,pop_i,pop_i,expsyn,/home/abiakarn/git/delete/arbor-sonata/example/components/point_params/expsyn.json,0.1,-0.01,0,0.05,0,0.55,10
-103,pop_e_i,pop_e,pop_i,expsyn,/home/abiakarn/git/delete/arbor-sonata/example/components/point_params/expsyn.json,0.1,0.01,0,0.05,0,0.95,10
+100,pop_e_e,pop_e,pop_e,expsyn,/path/to/arbor-sonata/example/components/point_params/expsyn.json,0.1,0.01,0,0.95,0,0.05,10
+101,pop_i_e,pop_i,pop_e,expsyn,/path/to/arbor-sonata/example/components/point_params/expsyn.json,0.1,-0.01,0,0.05,0,0.95,10
+102,pop_i_i,pop_i,pop_i,expsyn,/path/to/arbor-sonata/example/components/point_params/expsyn.json,0.1,-0.01,0,0.05,0,0.55,10
+103,pop_e_i,pop_e,pop_i,expsyn,/path/to/arbor-sonata/example/components/point_params/expsyn.json,0.1,0.01,0,0.05,0,0.95,10
 200,pop_ext_e,pop_ext,pop_e,expsyn,NULL,0.1,0.005,0,0,0,0,10

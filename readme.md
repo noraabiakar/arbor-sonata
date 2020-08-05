@@ -22,6 +22,15 @@ $ python generate/gen_nodes.py
 $ cd ../inputs
 $ python generate/gen_spikes.py
 ```
+#### Enter the correct paths
+* The paths have to be hard coded (for now)
+* The following files need to be modified
+  * example/circuit_config.json
+  * example/network/edge_types.csv
+  * example/network/node_types.csv
+  * example/simulation_config.json
+
+
 
 #### Build the sonata library, unit tests and example
 ```
