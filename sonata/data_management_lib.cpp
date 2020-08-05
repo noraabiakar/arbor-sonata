@@ -191,7 +191,7 @@ arb::morphology model_desc::get_cell_morphology(cell_gid_type gid) {
 
             std::ifstream f(file);
             if (!f) throw sonata_exception("Unable to open SWC file");
-            return arb::morphology(arb::swc_as_sample_tree(arb::parse_swc_file(f)));
+            return arb::morphology(arb::swc_as_segment_tree(arb::parse_swc_file(f)));
         }
     }
     return node_types_.morph(type_pop_id(node_type_tag, node_pop_name));

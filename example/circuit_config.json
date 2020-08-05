@@ -2,39 +2,39 @@
   "network": {
     "nodes": [
       {
-        "nodes_file": "/home/abiakarn/git/arbor-sonata/example/network/nodes_0.h5",
-        "node_types_file": "/home/abiakarn/git/arbor-sonata/example/network/node_types.csv"
+        "nodes_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/nodes_0.h5",
+        "node_types_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/node_types.csv"
       },
       {
-        "nodes_file": "/home/abiakarn/git/arbor-sonata/example/network/nodes_1.h5",
-        "node_types_file": "/home/abiakarn/git/arbor-sonata/example/network/node_types.csv"
+        "nodes_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/nodes_1.h5",
+        "node_types_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/node_types.csv"
       },
       {
-        "nodes_file": "/home/abiakarn/git/arbor-sonata/example/network/nodes_ext.h5",
-        "node_types_file": "/home/abiakarn/git/arbor-sonata/example/network/node_types.csv"
+        "nodes_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/nodes_ext.h5",
+        "node_types_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/node_types.csv"
       }
     ],
 
     "edges": [
       {
-        "edges_file": "/home/abiakarn/git/arbor-sonata/example/network/edges_0.h5",
-        "edge_types_file": "/home/abiakarn/git/arbor-sonata/example/network/edge_types.csv"
+        "edges_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edges_0.h5",
+        "edge_types_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edge_types.csv"
       },
       {
-        "edges_file": "/home/abiakarn/git/arbor-sonata/example/network/edges_1.h5",
-        "edge_types_file": "/home/abiakarn/git/arbor-sonata/example/network/edge_types.csv"
+        "edges_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edges_1.h5",
+        "edge_types_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edge_types.csv"
       },
       {
-        "edges_file": "/home/abiakarn/git/arbor-sonata/example/network/edges_2.h5",
-        "edge_types_file": "/home/abiakarn/git/arbor-sonata/example/network/edge_types.csv"
+        "edges_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edges_2.h5",
+        "edge_types_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edge_types.csv"
       },
       {
-        "edges_file": "/home/abiakarn/git/arbor-sonata/example/network/edges_3.h5",
-        "edge_types_file": "/home/abiakarn/git/arbor-sonata/example/network/edge_types.csv"
+        "edges_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edges_3.h5",
+        "edge_types_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edge_types.csv"
       },
       {
-        "edges_file": "/home/abiakarn/git/arbor-sonata/example/network/edges_ext.h5",
-        "edge_types_file": "/home/abiakarn/git/arbor-sonata/example/network/edge_types.csv"
+        "edges_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edges_ext.h5",
+        "edge_types_file": "/home/abiakarn/git/delete/arbor-sonata/example/network/edge_types.csv"
       }
     ]
   }

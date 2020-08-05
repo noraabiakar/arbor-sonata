@@ -50,11 +50,9 @@ TEST(csv_node_record, constructor) {
     auto m0 = r.morph(t0);
     auto m1 = r.morph(t1);
 
-    EXPECT_EQ(m0.spherical_root(), m1.spherical_root());
     EXPECT_EQ(m0.num_branches(), m1.num_branches());
-    EXPECT_EQ(m0.num_samples(), m1.num_samples());
 
-    EXPECT_EQ(2, m0.num_branches());
+    EXPECT_EQ(1, m0.num_branches());
 
     EXPECT_THROW(r.morph(t2), sonata_exception);
 
