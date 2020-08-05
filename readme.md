@@ -49,6 +49,6 @@ $ ./bin/unit
 $ ./bin/sonata-example ../example/simulation_config.json
 ```
 ##### Expected outcome of running the example:
-* **2661** spikes generated
+* **2492** spikes generated
 * Output spikes report: `output_spikes.h5`
 * Voltage and current probe reports: `voltage_report.h5` and `current_report.h5`
